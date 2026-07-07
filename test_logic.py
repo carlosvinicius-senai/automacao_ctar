@@ -74,6 +74,20 @@ class TestCTARLogic(unittest.TestCase):
         self.assertEqual(p6[0], "1724")
         self.assertEqual(p6[1], "Systemac")
 
+        # Exemplo 7: ID no final com hifens normais e termos descritivos
+        f7 = "ISA ENERGIA - Capina Biológica - Gravação (ID 1720).mp4"
+        p7 = self.app.parse_ctar_filename(f7)
+        self.assertIsNotNone(p7)
+        self.assertEqual(p7[0], "1720")
+        self.assertEqual(p7[1], "ISA ENERGIA")
+
+        # Exemplo 8: ID no final com hifens soltos/colados e termos descritivos
+        f8 = "ISA ENERGIA Capina Biológica- -Gravação (ID 1720).mp4"
+        p8 = self.app.parse_ctar_filename(f8)
+        self.assertIsNotNone(p8)
+        self.assertEqual(p8[0], "1720")
+        self.assertEqual(p8[1], "ISA ENERGIA Capina Biológica")
+
 
     def test_parse_ctar_filename_invalid(self):
         # Nome sem ID

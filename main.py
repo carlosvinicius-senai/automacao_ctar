@@ -565,10 +565,12 @@ class CTARAutomationApp:
             
             words = []
             for word in cleaned.split():
-                word_clean = word.strip().lower()
-                word_clean = re.sub(r"[^\wÀ-ÿ\-]", "", word_clean)
+                word_clean = word.strip().strip("-").lower()
+                word_clean = re.sub(r"[^\wÀ-ÿ]", "", word_clean)
                 if word_clean and word_clean not in ignore_words and not word_clean.isdigit():
-                    words.append(word)
+                    word_preserved = word.strip().strip("-")
+                    if word_preserved:
+                        words.append(word_preserved)
             
             return " ".join(words).strip()
 
@@ -582,12 +584,18 @@ class CTARAutomationApp:
                     if i + 1 < len(parts):
                         project_name = clean_text(parts[i+1])
                         break
+                    elif i > 0:
+                        project_name = clean_text(parts[0])
+                        break
         elif "-" in name_without_ext:
             parts = name_without_ext.split("-")
             for i, part in enumerate(parts):
                 if "ID" in part.upper() and project_id in part:
                     if i + 1 < len(parts):
                         project_name = clean_text(parts[i+1])
+                        break
+                    elif i > 0:
+                        project_name = clean_text(parts[0])
                         break
                         
         # 3. Caso não haja delimitadores (| ou -), limpa a string inteira
