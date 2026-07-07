@@ -1,0 +1,22 @@
+# PyInstaller e pastas de build
+build/
+dist/
+*.spec
+
+# Python virtual env e cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+env/
+
+# Configurações locais (salvas localmente pelo usuário)
+config.json
+
+# IDEs
+.vscode/
+.idea/
+.gemini/
