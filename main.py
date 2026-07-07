@@ -13,6 +13,8 @@ from tkinter import scrolledtext
 CONFIG_FILE = "config.json"
 
 class CTARAutomationApp:
+    VERSION = "1.0.0"
+
     def __init__(self, root):
         self.root = root
         self.root.title("Automação de Gravações e Documentos CTAR")
@@ -67,6 +69,9 @@ class CTARAutomationApp:
         
         # Configurar fechamento seguro
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        # Iniciar verificação de atualizações em segundo plano
+        threading.Thread(target=self.check_for_updates, daemon=True).start()
 
     def create_widgets(self):
         # --- 1. CABEÇALHO (Header) ---
@@ -699,6 +704,70 @@ class CTARAutomationApp:
                 self.root.destroy()
         else:
             self.root.destroy()
+
+    def check_for_updates(self):
+        try:
+            import urllib.request
+            import json
+            
+            url = "https://api.github.com/repos/carlosvinicius-senai/automacao_ctar/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "CTAR-Automation-Updater"})
+            
+            with urllib.request.urlopen(req, timeout=8) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode('utf-8'))
+                    tag_name = data.get("tag_name", "")
+                    
+                    if not tag_name:
+                        return
+                        
+                    clean_latest = tag_name.lstrip("vV").strip()
+                    clean_curr = self.VERSION.lstrip("vV").strip()
+                    
+                    def parse_version(v_str):
+                        return [int(x) for x in re.findall(r'\d+', v_str)]
+                        
+                    if parse_version(clean_latest) > parse_version(clean_curr):
+                        # Procurar a url de download do Setup_Automacao_CTAR.exe
+                        download_url = None
+                        for asset in data.get("assets", []):
+                            if "Setup_Automacao_CTAR" in asset.get("name", ""):
+                                download_url = asset.get("browser_download_url")
+                                break
+                        
+                        if download_url:
+                            self.root.after(0, self.prompt_update, tag_name, download_url)
+        except Exception:
+            # Falha silenciosa para não quebrar a inicialização se estiver sem rede
+            pass
+            
+    def prompt_update(self, new_version, download_url):
+        if messagebox.askyesno(
+            "Atualização Disponível", 
+            f"Uma nova versão ({new_version}) da Automação CTAR está disponível!\n\nDeseja baixar e instalar agora?"
+        ):
+            # Iniciar download em segundo plano
+            threading.Thread(target=self.download_and_run_updater, args=(download_url,), daemon=True).start()
+            
+    def download_and_run_updater(self, download_url):
+        self.log("Baixando nova atualização de Setup_Automacao_CTAR.exe...", "warning")
+        try:
+            import urllib.request
+            temp_dir = os.environ.get('TEMP', os.path.expanduser('~\\AppData\\Local\\Temp'))
+            installer_path = os.path.join(temp_dir, 'Setup_Automacao_CTAR_Update.exe')
+            
+            # Baixar o instalador
+            urllib.request.urlretrieve(download_url, installer_path)
+            
+            self.log("Download concluído. Iniciando instalador...", "start")
+            
+            # Executar instalador e fechar o app
+            os.startfile(installer_path)
+            self.root.after(100, self.root.destroy)
+            
+        except Exception as e:
+            self.log(f"Erro ao baixar atualização: {e}", "warning")
+            self.root.after(0, lambda: messagebox.showerror("Erro de Atualização", f"Não foi possível baixar a atualização:\n{e}"))
 
 if __name__ == "__main__":
     root = tk.Tk()
