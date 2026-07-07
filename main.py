@@ -545,14 +545,20 @@ class CTARAutomationApp:
             return None
         project_id = id_match.group(1).strip()
         
-        # Termos genéricos a serem desconsiderados
+        # Termos genéricos e de serviços a serem desconsiderados
         ignore_words = {
             "gravação", "gravacao", "reunião", "reuniao", "ctar", "meeting", 
             "discussão", "discussao", "técnica", "tecnica", "desenvolvimento", 
             "geral", "final", "empresa", "cliente", "projeto", "discussao",
             "transcrição", "transcricao", "presença", "presenca", "comentário", 
             "comentario", "parecer", "de", "da", "do", "das", "dos", "com", 
-            "para", "em", "um", "uma", "a", "o", "e", "of", "the", "and"
+            "para", "em", "um", "uma", "a", "o", "e", "of", "the", "and",
+            # Termos de serviços da consultoria CTAR/Senai
+            "capina", "biológica", "biologica", "eficiência", "eficiencia",
+            "energética", "energetica", "lean", "manufacturing", "manufatura",
+            "enxuta", "produtividade", "consultoria", "mentoria", "treinamento",
+            "auditoria", "visita", "diagnóstico", "diagnostico", "acompanhamento",
+            "gerencial", "digital", "digitalização", "digitalizacao"
         }
         
         # Função auxiliar para limpar um segmento de texto

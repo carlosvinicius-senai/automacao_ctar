@@ -86,7 +86,7 @@ class TestCTARLogic(unittest.TestCase):
         p8 = self.app.parse_ctar_filename(f8)
         self.assertIsNotNone(p8)
         self.assertEqual(p8[0], "1720")
-        self.assertEqual(p8[1], "ISA ENERGIA Capina Biológica")
+        self.assertEqual(p8[1], "ISA ENERGIA")
 
 
     def test_parse_ctar_filename_invalid(self):
