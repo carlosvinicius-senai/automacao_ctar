@@ -161,5 +161,27 @@ class TestCTARLogic(unittest.TestCase):
         # 8. Finalizar monitoramento de forma limpa
         self.app.stop_monitoring()
 
+    def test_do_not_overwrite_existing_target_file(self):
+        # 1. Simular uma pasta e um arquivo já existentes no destino
+        dest_folder = os.path.join(self.dir_destino, "Systemac (ID 1724)")
+        os.makedirs(dest_folder, exist_ok=True)
+        dest_file = os.path.join(dest_folder, "Gravação CTAR (ID 1724) - Systemac.mp4")
+        with open(dest_file, 'wb') as f:
+            f.write(b"original sharepoint content")
+            
+        # 2. Criar um arquivo novo na origem com o mesmo nome
+        src_file = os.path.join(self.dir_gravacoes, "[CTAR] ID 1724 - Systemac - IA Modelagem.mp4")
+        with open(src_file, 'wb') as f:
+            f.write(b"new local video content")
+            
+        # 3. Processar
+        self.app.process_file(src_file, "gravacoes")
+        
+        # 4. Verificar que o conteúdo do arquivo no destino permanece inalterado (não foi sobrescrito)
+        with open(dest_file, 'rb') as f:
+            content = f.read()
+        self.assertEqual(content, b"original sharepoint content")
+        self.assertTrue(os.path.exists(src_file))
+
 if __name__ == "__main__":
     unittest.main()

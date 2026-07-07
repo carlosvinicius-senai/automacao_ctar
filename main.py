@@ -672,14 +672,17 @@ class CTARAutomationApp:
         try:
             os.makedirs(target_folder_path, exist_ok=True)
             
-            base_name, file_extension = os.path.splitext(new_filename)
-            counter = 1
-            final_target_filepath = target_filepath
-            while os.path.exists(final_target_filepath):
-                final_target_filepath = os.path.join(target_folder_path, f"{base_name}_{counter}{file_extension}")
-                counter += 1
+            if os.path.exists(target_filepath):
+                self.log(f"  -> Aviso: O arquivo '{new_filename}' já existe no destino. Pulando cópia para não sobrescrever.", "warning")
+                # Registrar metadados estáveis do arquivo de origem para não processar novamente
+                try:
+                    stat = os.stat(filepath)
+                    self.processed_files.add((filepath, stat.st_mtime, stat.st_size))
+                except Exception:
+                    self.processed_files.add(filepath)
+                return
             
-            shutil.copy2(filepath, final_target_filepath)
+            shutil.copy2(filepath, target_filepath)
             
             # Registrar metadados estáveis do arquivo copiado para não processar novamente
             try:
@@ -688,7 +691,7 @@ class CTARAutomationApp:
             except Exception:
                 self.processed_files.add(filepath)
                 
-            self.log(f"  -> Sucesso: Arquivo copiado e renomeado para '{os.path.basename(final_target_filepath)}'", "start")
+            self.log(f"  -> Sucesso: Arquivo copiado e renomeado para '{os.path.basename(target_filepath)}'", "start")
             
         except Exception as e:
             self.log(f"  -> Falha crítica ao copiar o arquivo: {e}", "warning")
