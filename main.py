@@ -13,7 +13,7 @@ from tkinter import scrolledtext
 CONFIG_FILE = "config.json"
 
 class CTARAutomationApp:
-    VERSION = "1.0.0"
+    VERSION = "1.0.2"
 
     def __init__(self, root):
         self.root = root
@@ -60,6 +60,7 @@ class CTARAutomationApp:
         self.is_monitoring = False
         self.monitor_thread = None
         self.ignored_files = set()
+        self.processed_files = set()
         
         # Inicializar UI
         self.create_widgets()
@@ -464,6 +465,19 @@ class CTARAutomationApp:
         
         self.log("Monitoramento iniciado. Observando alterações nas pastas de origem.", "start")
         
+        # Limpar e registrar arquivos que já existem no início para ignorá-los
+        self.processed_files.clear()
+        self.ignored_files.clear()
+        for folder in [g_dir, d_dir]:
+            if folder and os.path.exists(folder):
+                try:
+                    for entry in os.scandir(folder):
+                        if entry.is_file():
+                            stat = entry.stat()
+                            self.processed_files.add((entry.path, stat.st_mtime, stat.st_size))
+                except Exception:
+                    pass
+        
         # Iniciar thread do monitor
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.monitor_thread.start()
@@ -485,6 +499,10 @@ class CTARAutomationApp:
         # Habilitar inputs de configuração
         self.set_inputs_state('normal')
         self.log("Monitoramento interrompido pelo usuário.", "stop")
+        
+        # Aguardar finalização da thread para evitar erros em testes unitários
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join(timeout=0.1)
 
     def update_button_colors(self):
         if self.is_monitoring:
@@ -661,19 +679,31 @@ class CTARAutomationApp:
                 final_target_filepath = os.path.join(target_folder_path, f"{base_name}_{counter}{file_extension}")
                 counter += 1
             
-            shutil.move(filepath, final_target_filepath)
-            self.log(f"  -> Sucesso: Arquivo movido e renomeado para '{os.path.basename(final_target_filepath)}'", "start")
+            shutil.copy2(filepath, final_target_filepath)
+            
+            # Registrar metadados estáveis do arquivo copiado para não processar novamente
+            try:
+                stat = os.stat(filepath)
+                self.processed_files.add((filepath, stat.st_mtime, stat.st_size))
+            except Exception:
+                self.processed_files.add(filepath)
+                
+            self.log(f"  -> Sucesso: Arquivo copiado e renomeado para '{os.path.basename(final_target_filepath)}'", "start")
             
         except Exception as e:
-            self.log(f"  -> Falha crítica ao mover o arquivo: {e}", "warning")
+            self.log(f"  -> Falha crítica ao copiar o arquivo: {e}", "warning")
 
     def _monitor_loop(self):
         while self.is_monitoring:
-            g_dir = self.dir_gravacoes.get()
-            d_dir = self.dir_documentos.get()
-            
-            self._scan_folder(g_dir, "gravacoes")
-            self._scan_folder(d_dir, "documentos")
+            try:
+                g_dir = self.dir_gravacoes.get()
+                d_dir = self.dir_documentos.get()
+                
+                self._scan_folder(g_dir, "gravacoes")
+                self._scan_folder(d_dir, "documentos")
+            except (tk.TclError, RuntimeError):
+                # Ocorre quando a janela do Tkinter foi destruída
+                break
             
             time.sleep(2)
 
@@ -690,6 +720,16 @@ class CTARAutomationApp:
                     filename = entry.name
                     
                     if filename.startswith("~$") or filename.startswith("."):
+                        continue
+                        
+                    # Obter metadados para verificar se já foi processado
+                    try:
+                        stat = entry.stat()
+                        file_key = (filepath, stat.st_mtime, stat.st_size)
+                    except Exception:
+                        file_key = filepath
+                        
+                    if file_key in self.processed_files or filepath in self.processed_files:
                         continue
                         
                     if "CTAR" in filename.upper():

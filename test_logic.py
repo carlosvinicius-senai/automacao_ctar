@@ -90,13 +90,13 @@ class TestCTARLogic(unittest.TestCase):
         # Processar o arquivo
         self.app.process_file(src_file, "gravacoes")
         
-        # Verificar se o arquivo foi movido para o destino correto com o nome correto
+        # Verificar se o arquivo foi copiado para o destino correto com o nome correto
         expected_folder = os.path.join(self.dir_destino, "Systemac (ID 1724)")
         expected_file = os.path.join(expected_folder, "Gravação CTAR (ID 1724) - Systemac.mp4")
         
         self.assertTrue(os.path.exists(expected_folder))
         self.assertTrue(os.path.exists(expected_file))
-        self.assertFalse(os.path.exists(src_file)) # Deve ter sido movido (removido da origem)
+        self.assertTrue(os.path.exists(src_file)) # Deve ter sido COPIADO (permanece na origem)
 
     def test_process_file_transcription_and_presence(self):
         # Simular arquivo de transcrição
@@ -121,8 +121,45 @@ class TestCTARLogic(unittest.TestCase):
         self.assertTrue(os.path.exists(expected_folder))
         self.assertTrue(os.path.exists(expected_trans_file))
         self.assertTrue(os.path.exists(expected_pres_file))
-        self.assertFalse(os.path.exists(src_trans))
-        self.assertFalse(os.path.exists(src_pres))
+        self.assertTrue(os.path.exists(src_trans)) # Permanece na origem
+        self.assertTrue(os.path.exists(src_pres)) # Permanece na origem
+
+    def test_ignore_existing_files_at_startup(self):
+        # 1. Simular um arquivo pré-existente na pasta de gravações
+        pre_file = os.path.join(self.dir_gravacoes, "[CTAR] ID 1585 - LEPRI - Gravacao.mp4")
+        with open(pre_file, 'wb') as f:
+            f.write(b"pre-existing recording content")
+            
+        # 2. Iniciar monitoramento (popula processed_files com o pre_file)
+        self.app.start_monitoring()
+        
+        # 3. Rodar scan_folder na pasta de gravações
+        self.app._scan_folder(self.dir_gravacoes, "gravacoes")
+        
+        # 4. Verificar que o arquivo pré-existente NÃO foi copiado para o destino
+        expected_folder_pre = os.path.join(self.dir_destino, "LEPRI (ID 1585)")
+        expected_file_pre = os.path.join(expected_folder_pre, "Gravação CTAR (ID 1585) - LEPRI.mp4")
+        self.assertFalse(os.path.exists(expected_folder_pre))
+        self.assertFalse(os.path.exists(expected_file_pre))
+        
+        # 5. Adicionar um NOVO arquivo na pasta de gravações (após o início)
+        new_file = os.path.join(self.dir_gravacoes, "[CTAR] ID 1591 - ANJUNA TECH - Meeting.mp4")
+        with open(new_file, 'wb') as f:
+            f.write(b"new recording content")
+            
+        # 6. Rodar scan_folder novamente
+        self.app._scan_folder(self.dir_gravacoes, "gravacoes")
+        
+        # 7. Verificar que o NOVO arquivo foi copiado com sucesso e o original continua lá
+        expected_folder_new = os.path.join(self.dir_destino, "ANJUNA TECH (ID 1591)")
+        expected_file_new = os.path.join(expected_folder_new, "Gravação CTAR (ID 1591) - ANJUNA TECH.mp4")
+        
+        self.assertTrue(os.path.exists(expected_folder_new))
+        self.assertTrue(os.path.exists(expected_file_new))
+        self.assertTrue(os.path.exists(new_file))
+        
+        # 8. Finalizar monitoramento de forma limpa
+        self.app.stop_monitoring()
 
 if __name__ == "__main__":
     unittest.main()
