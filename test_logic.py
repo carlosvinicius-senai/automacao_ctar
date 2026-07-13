@@ -88,6 +88,13 @@ class TestCTARLogic(unittest.TestCase):
         self.assertEqual(p8[0], "1720")
         self.assertEqual(p8[1], "ISA ENERGIA")
 
+        # Exemplo 9: ID no início com underline como delimitador
+        f9 = "[CTAR] ID 1726 _ Systemac _ Tintas sem primer base água  (1).mp4"
+        p9 = self.app.parse_ctar_filename(f9)
+        self.assertIsNotNone(p9)
+        self.assertEqual(p9[0], "1726")
+        self.assertEqual(p9[1], "Systemac")
+
 
     def test_parse_ctar_filename_invalid(self):
         # Nome sem ID

@@ -13,7 +13,7 @@ from tkinter import scrolledtext
 CONFIG_FILE = "config.json"
 
 class CTARAutomationApp:
-    VERSION = "1.0.2"
+    VERSION = "1.0.3"
 
     def __init__(self, root):
         self.root = root
@@ -582,7 +582,7 @@ class CTARAutomationApp:
 
         project_name = None
         
-        # 2. Regra 2: O nome costuma estar após o ID ou separado por traços (-) ou barras (|)
+        # 2. Regra 2: O nome costuma estar após o ID ou separado por traços (-), barras (|) ou underlines (_)
         if "|" in name_without_ext:
             parts = name_without_ext.split("|")
             for i, part in enumerate(parts):
@@ -595,6 +595,16 @@ class CTARAutomationApp:
                         break
         elif "-" in name_without_ext:
             parts = name_without_ext.split("-")
+            for i, part in enumerate(parts):
+                if "ID" in part.upper() and project_id in part:
+                    if i + 1 < len(parts):
+                        project_name = clean_text(parts[i+1])
+                        break
+                    elif i > 0:
+                        project_name = clean_text(parts[0])
+                        break
+        elif "_" in name_without_ext:
+            parts = name_without_ext.split("_")
             for i, part in enumerate(parts):
                 if "ID" in part.upper() and project_id in part:
                     if i + 1 < len(parts):
