@@ -13,7 +13,7 @@ from tkinter import scrolledtext
 CONFIG_FILE = "config.json"
 
 class CTARAutomationApp:
-    VERSION = "1.0.3"
+    VERSION = "1.0.4"
 
     def __init__(self, root):
         self.root = root
@@ -125,8 +125,50 @@ class CTARAutomationApp:
         )
         self.lbl_pill_status.pack()
         
-        # --- CORPO PRINCIPAL ---
-        body_frame = tk.Frame(self.root, bg=self.color_bg, padx=25, pady=20)
+        # --- CORPO PRINCIPAL ROLÁVEL ---
+        container = tk.Frame(self.root, bg=self.color_bg)
+        container.pack(fill=tk.BOTH, expand=True)
+        
+        # Canvas e Scrollbar
+        self.canvas = tk.Canvas(container, bg=self.color_bg, highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=self.canvas.yview)
+        
+        # Frame de conteúdo dentro do Canvas
+        self.scrollable_frame = tk.Frame(self.canvas, bg=self.color_bg)
+        
+        # Configurar canvas e frame de conteúdo
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
+            )
+        )
+        
+        self.canvas_frame_id = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # Ajustar largura do scrollable_frame para preencher a largura do canvas
+        self.canvas.bind(
+            "<Configure>",
+            lambda e: self.canvas.itemconfig(self.canvas_frame_id, width=e.width)
+        )
+        
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack canvas e scrollbar
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Adicionar suporte a scroll com a roda do mouse (MouseWheel)
+        def _on_mousewheel(event):
+            try:
+                self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            except Exception:
+                pass
+            
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # O body_frame agora é filho do scrollable_frame para rolar automaticamente
+        body_frame = tk.Frame(self.scrollable_frame, bg=self.color_bg, padx=25, pady=20)
         body_frame.pack(fill=tk.BOTH, expand=True)
         
         # Card de Configuração de Diretórios (Borda fina cinza)
@@ -539,6 +581,9 @@ class CTARAutomationApp:
     def parse_ctar_filename(self, filename):
         name_without_ext, ext = os.path.splitext(filename)
         
+        # Remover sufixos de cópias do Windows (ex: " (1)") no final do nome
+        name_without_ext = re.sub(r"\s*\(\d+\)\s*$", "", name_without_ext)
+        
         # 1. Regra 1: Extrair o ID do projeto (ID seguido de números)
         id_match = re.search(r"ID\s*(\d+)", name_without_ext, re.IGNORECASE)
         if not id_match:
@@ -563,6 +608,9 @@ class CTARAutomationApp:
         
         # Função auxiliar para limpar um segmento de texto
         def clean_text(text):
+            # Remover tudo que estiver entre parênteses
+            text = re.sub(r"\([^)]*\)", "", text)
+            
             cleaned = re.sub(r"[\[\]()_.\/]", " ", text)
             cleaned = re.sub(r"\bID\b", "", cleaned, flags=re.IGNORECASE)
             cleaned = re.sub(r"\b" + project_id + r"\b", "", cleaned)
@@ -582,8 +630,20 @@ class CTARAutomationApp:
 
         project_name = None
         
-        # 2. Regra 2: O nome costuma estar após o ID ou separado por traços (-), barras (|) ou underlines (_)
-        if "|" in name_without_ext:
+        # 2. Regra 2: O nome costuma estar após o ID ou separado por blocos de espaços duplos (  ), barras (|), traços (-) ou underlines (_)
+        has_double_spaces = len(re.findall(r"\s{2,}", name_without_ext)) > 0
+        
+        if has_double_spaces:
+            parts = re.split(r"\s{2,}", name_without_ext)
+            for i, part in enumerate(parts):
+                if "ID" in part.upper() and project_id in part:
+                    if i + 1 < len(parts):
+                        project_name = clean_text(parts[i+1])
+                        break
+                    elif i > 0:
+                        project_name = clean_text(parts[0])
+                        break
+        elif "|" in name_without_ext:
             parts = name_without_ext.split("|")
             for i, part in enumerate(parts):
                 if "ID" in part.upper() and project_id in part:
@@ -626,6 +686,15 @@ class CTARAutomationApp:
         project_name = name_clean.strip()
         
         return project_id, project_name, ext.lower()
+
+    def get_ctar_subfolder(self, filename):
+        # Detectar número de rodada do CTAR antes do prefixo [CTAR]
+        # Ex: "2º [CTAR] ID 1495..." ou "2 [CTAR]..."
+        match = re.match(r"^\s*(\d+)(?:º|°|o|a)?\s*\[CTAR\]", filename, re.IGNORECASE)
+        if match:
+            num = match.group(1)
+            return f"{num}º CTAR"
+        return "1º CTAR"
 
     def is_file_ready(self, filepath):
         if not os.path.exists(filepath):
@@ -680,21 +749,44 @@ class CTARAutomationApp:
             prefix = "Documento"
 
         dest_root = self.dir_destino.get()
-        target_folder_name = f"{project_name} (ID {project_id})"
-        target_folder_path = os.path.join(dest_root, target_folder_name)
+        
+        # 1. Procurar pasta existente com o mesmo ID para evitar duplicações
+        existing_folder = None
+        if os.path.exists(dest_root):
+            try:
+                with os.scandir(dest_root) as entries:
+                    for entry in entries:
+                        if entry.is_dir() and entry.name.endswith(f" (ID {project_id})"):
+                            existing_folder = entry.path
+                            break
+            except Exception:
+                pass
+        
+        if existing_folder:
+            target_folder_path = existing_folder
+            # Extrair o nome do projeto já existente para manter a padronização
+            folder_name = os.path.basename(existing_folder)
+            project_name = folder_name.split(" (ID ")[0].strip()
+        else:
+            target_folder_name = f"{project_name} (ID {project_id})"
+            target_folder_path = os.path.join(dest_root, target_folder_name)
+            
+        # 2. Obter a subpasta correspondente à rodada CTAR (ex: 1º CTAR, 2º CTAR)
+        subfolder_name = self.get_ctar_subfolder(filename)
+        final_folder_path = os.path.join(target_folder_path, subfolder_name)
         
         new_filename = f"{prefix} CTAR (ID {project_id}) - {project_name}{ext}"
-        target_filepath = os.path.join(target_folder_path, new_filename)
+        target_filepath = os.path.join(final_folder_path, new_filename)
         
         self.log(f"Detectado arquivo: '{filename}'", "info")
-        self.log(f"  -> Identificado como: {prefix} | Projeto: {project_name} (ID: {project_id})", "info")
+        self.log(f"  -> Identificado como: {prefix} | Projeto: {project_name} (ID: {project_id}) | Pasta: {subfolder_name}", "info")
         
         if not self.wait_for_file_ready(filepath):
             self.log(f"  -> Erro: O arquivo '{filename}' está bloqueado ou em gravação. Será reprocessado no próximo ciclo.", "warning")
             return
 
         try:
-            os.makedirs(target_folder_path, exist_ok=True)
+            os.makedirs(final_folder_path, exist_ok=True)
             
             if os.path.exists(target_filepath):
                 self.log(f"  -> Aviso: O arquivo '{new_filename}' já existe no destino. Pulando cópia para não sobrescrever.", "warning")

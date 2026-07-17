@@ -95,6 +95,41 @@ class TestCTARLogic(unittest.TestCase):
         self.assertEqual(p9[0], "1726")
         self.assertEqual(p9[1], "Systemac")
 
+        # Exemplo 10: Espaços duplos e parênteses (Votorantim)
+        f10 = "[CTAR] ID 1495  SIQLO TECH (Votorantim)  VOD para Mineração-20260716_080826-Gravação de Reunião.mp4"
+        p10 = self.app.parse_ctar_filename(f10)
+        self.assertIsNotNone(p10)
+        self.assertEqual(p10[0], "1495")
+        self.assertEqual(p10[1], "SIQLO TECH")
+
+        # Exemplo 11: Espaços duplos e assunto complexo
+        f11 = "[CTAR] ID 1296  Moinho  Biopolímero - Resistência ao Calor-20260714_162547-Gravação de Reunião.mp4"
+        p11 = self.app.parse_ctar_filename(f11)
+        self.assertIsNotNone(p11)
+        self.assertEqual(p11[0], "1296")
+        self.assertEqual(p11[1], "Moinho")
+
+        # Exemplo 12: Espaços duplos e CSN Cimentos
+        f12 = "[CTAR] ID 1599  CSN Cimentos  Concretos Nanoaditivos-20260714_151305-Gravação de Reunião.mp4"
+        p12 = self.app.parse_ctar_filename(f12)
+        self.assertIsNotNone(p12)
+        self.assertEqual(p12[0], "1599")
+        self.assertEqual(p12[1], "CSN Cimentos")
+
+        # Exemplo 13: Espaços duplos e ANJUNA TECH
+        f13 = "[CTAR] ID 1591  ANJUNA TECH  AGENTIC-I Plataforma Nacional de IA-20260707_150957-Gravação de Reunião.mp4"
+        p13 = self.app.parse_ctar_filename(f13)
+        self.assertIsNotNone(p13)
+        self.assertEqual(p13[0], "1591")
+        self.assertEqual(p13[1], "ANJUNA TECH")
+
+        # Exemplo 14: Espaços duplos e LEPRI
+        f14 = "[CTAR] ID 1585  LEPRI  Formulação Cerâmica com Vidro Reciclado.mp4"
+        p14 = self.app.parse_ctar_filename(f14)
+        self.assertIsNotNone(p14)
+        self.assertEqual(p14[0], "1585")
+        self.assertEqual(p14[1], "LEPRI")
+
 
     def test_parse_ctar_filename_invalid(self):
         # Nome sem ID
@@ -111,8 +146,8 @@ class TestCTARLogic(unittest.TestCase):
         # Processar o arquivo
         self.app.process_file(src_file, "gravacoes")
         
-        # Verificar se o arquivo foi copiado para o destino correto com o nome correto
-        expected_folder = os.path.join(self.dir_destino, "Systemac (ID 1724)")
+        # Verificar se o arquivo foi copiado para o destino correto com o nome correto na subpasta 1º CTAR
+        expected_folder = os.path.join(self.dir_destino, "Systemac (ID 1724)", "1º CTAR")
         expected_file = os.path.join(expected_folder, "Gravação CTAR (ID 1724) - Systemac.mp4")
         
         self.assertTrue(os.path.exists(expected_folder))
@@ -134,8 +169,8 @@ class TestCTARLogic(unittest.TestCase):
         self.app.process_file(src_trans, "documentos")
         self.app.process_file(src_pres, "documentos")
         
-        # Verificar resultados no destino
-        expected_folder = os.path.join(self.dir_destino, "AERONAVAL (ID 1482)")
+        # Verificar resultados no destino na subpasta 1º CTAR
+        expected_folder = os.path.join(self.dir_destino, "AERONAVAL (ID 1482)", "1º CTAR")
         expected_trans_file = os.path.join(expected_folder, "Transcrição CTAR (ID 1482) - AERONAVAL.docx")
         expected_pres_file = os.path.join(expected_folder, "Presença CTAR (ID 1482) - AERONAVAL.csv")
         
@@ -158,7 +193,7 @@ class TestCTARLogic(unittest.TestCase):
         self.app._scan_folder(self.dir_gravacoes, "gravacoes")
         
         # 4. Verificar que o arquivo pré-existente NÃO foi copiado para o destino
-        expected_folder_pre = os.path.join(self.dir_destino, "LEPRI (ID 1585)")
+        expected_folder_pre = os.path.join(self.dir_destino, "LEPRI (ID 1585)", "1º CTAR")
         expected_file_pre = os.path.join(expected_folder_pre, "Gravação CTAR (ID 1585) - LEPRI.mp4")
         self.assertFalse(os.path.exists(expected_folder_pre))
         self.assertFalse(os.path.exists(expected_file_pre))
@@ -172,7 +207,7 @@ class TestCTARLogic(unittest.TestCase):
         self.app._scan_folder(self.dir_gravacoes, "gravacoes")
         
         # 7. Verificar que o NOVO arquivo foi copiado com sucesso e o original continua lá
-        expected_folder_new = os.path.join(self.dir_destino, "ANJUNA TECH (ID 1591)")
+        expected_folder_new = os.path.join(self.dir_destino, "ANJUNA TECH (ID 1591)", "1º CTAR")
         expected_file_new = os.path.join(expected_folder_new, "Gravação CTAR (ID 1591) - ANJUNA TECH.mp4")
         
         self.assertTrue(os.path.exists(expected_folder_new))
@@ -184,7 +219,7 @@ class TestCTARLogic(unittest.TestCase):
 
     def test_do_not_overwrite_existing_target_file(self):
         # 1. Simular uma pasta e um arquivo já existentes no destino
-        dest_folder = os.path.join(self.dir_destino, "Systemac (ID 1724)")
+        dest_folder = os.path.join(self.dir_destino, "Systemac (ID 1724)", "1º CTAR")
         os.makedirs(dest_folder, exist_ok=True)
         dest_file = os.path.join(dest_folder, "Gravação CTAR (ID 1724) - Systemac.mp4")
         with open(dest_file, 'wb') as f:
@@ -203,6 +238,34 @@ class TestCTARLogic(unittest.TestCase):
             content = f.read()
         self.assertEqual(content, b"original sharepoint content")
         self.assertTrue(os.path.exists(src_file))
+
+    def test_ctar_subfolders(self):
+        # 1. Simular arquivo com "2º" no início
+        src_file2 = os.path.join(self.dir_gravacoes, "2º [CTAR] ID 1724 - Systemac - IA Modelagem.mp4")
+        with open(src_file2, 'wb') as f:
+            f.write(b"2nd video dummy")
+            
+        self.app.process_file(src_file2, "gravacoes")
+        
+        expected_folder2 = os.path.join(self.dir_destino, "Systemac (ID 1724)", "2º CTAR")
+        expected_file2 = os.path.join(expected_folder2, "Gravação CTAR (ID 1724) - Systemac.mp4")
+        self.assertTrue(os.path.exists(expected_file2))
+
+    def test_folder_id_lock(self):
+        # 1. Criar pasta existente com variação do nome mas mesmo ID no destino
+        dest_folder = os.path.join(self.dir_destino, "Systemac Original (ID 1724)")
+        os.makedirs(os.path.join(dest_folder, "1º CTAR"), exist_ok=True)
+        
+        # 2. Processar arquivo novo com nome Systemac diferente (ex: "Systemac Novo")
+        src_file = os.path.join(self.dir_gravacoes, "[CTAR] ID 1724 - Systemac Novo - Meeting.mp4")
+        with open(src_file, 'wb') as f:
+            f.write(b"new content")
+            
+        self.app.process_file(src_file, "gravacoes")
+        
+        # 3. Deve ter usado a pasta existente "Systemac Original (ID 1724)" e renomeado com esse nome
+        expected_file = os.path.join(dest_folder, "1º CTAR", "Gravação CTAR (ID 1724) - Systemac Original.mp4")
+        self.assertTrue(os.path.exists(expected_file))
 
 if __name__ == "__main__":
     unittest.main()
