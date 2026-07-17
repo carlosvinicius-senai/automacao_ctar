@@ -18,8 +18,8 @@ class CTARAutomationApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Automação de Gravações e Documentos CTAR")
-        self.root.geometry("800x780")
-        self.root.minsize(780, 720)
+        self.root.geometry("960x650")
+        self.root.minsize(920, 580)
         
         # Carregar Ícone do App
         ico_path = 'app_icon.ico'
@@ -44,9 +44,13 @@ class CTARAutomationApp:
         self.color_input_bg = "#F8FAFC"      # Fundo do campo de texto
         self.color_button_secondary = "#F1F5F9" # Fundo do botão Buscar
         
-        # Terminal Log Colors
-        self.color_term_bg = "#1E222B"       # Preto/Cinza Terminal
-        self.color_term_fg = "#ABB2BF"       # Texto cinza claro
+        # Cores específicas do Stepper
+        self.color_green = "#2E7D32"         # Verde sucesso
+        self.color_light_green = "#E8F5E9"   # Verde claro para fundo de sucesso
+        self.color_light_red = "#FFEBEE"     # Vermelho claro para brilho/glow ativo
+        
+        # Caminho do arquivo de logs locais
+        self.log_filepath = os.path.join(os.environ.get('LOCALAPPDATA', os.path.expanduser('~\\AppData\\Local')), 'Automacao_CTAR', 'app_log.txt')
         
         # Configurar background da janela principal
         self.root.configure(bg=self.color_bg)
@@ -61,6 +65,10 @@ class CTARAutomationApp:
         self.monitor_thread = None
         self.ignored_files = set()
         self.processed_files = set()
+        
+        # Estados das etapas do processamento (0 a 4)
+        self.step_states = {0: "pending", 1: "pending", 2: "pending", 3: "pending", 4: "pending"}
+        self.step_widgets = {}
         
         # Inicializar UI
         self.create_widgets()
@@ -166,13 +174,23 @@ class CTARAutomationApp:
                 pass
             
         self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
         # O body_frame agora é filho do scrollable_frame para rolar automaticamente
         body_frame = tk.Frame(self.scrollable_frame, bg=self.color_bg, padx=25, pady=20)
         body_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Card de Configuração de Diretórios (Borda fina cinza)
-        dir_card = tk.Frame(body_frame, bg=self.color_card_bg, bd=1, highlightthickness=1, highlightbackground=self.color_border)
+        # Estrutura Lado a Lado (Duas Colunas)
+        cols_frame = tk.Frame(body_frame, bg=self.color_bg)
+        cols_frame.pack(fill=tk.BOTH, expand=True)
+        
+        left_col = tk.Frame(cols_frame, bg=self.color_bg)
+        left_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 15))
+        
+        right_col = tk.Frame(cols_frame, bg=self.color_bg, width=420)
+        right_col.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(15, 0))
+        right_col.pack_propagate(False)
+        
+        # --- COLUNA ESQUERDA: Configuração de Diretórios ---
+        dir_card = tk.Frame(left_col, bg=self.color_card_bg, bd=1, highlightthickness=1, highlightbackground=self.color_border)
         dir_card.pack(fill=tk.X, pady=(0, 20))
         
         # Padding interno do cartão
@@ -306,9 +324,49 @@ class CTARAutomationApp:
             draw_cloud_emoji
         )
 
-        # Painel de Controle (Botões)
-        control_frame = tk.Frame(body_frame, bg=self.color_bg)
-        control_frame.pack(fill=tk.X, pady=(0, 20))
+        # --- COLUNA ESQUERDA: Última Nomenclatura Gerada ---
+        self.nomenclature_card = tk.Frame(left_col, bg=self.color_card_bg, bd=1, highlightthickness=1, highlightbackground=self.color_border)
+        self.nomenclature_card.pack(fill=tk.X, pady=(0, 20))
+        
+        nom_content = tk.Frame(self.nomenclature_card, bg=self.color_card_bg, padx=20, pady=20)
+        nom_content.pack(fill=tk.BOTH, expand=True)
+        
+        lbl_nom_title = tk.Label(
+            nom_content, 
+            text="ÚLTIMA NOMENCLATURA PROCESSADA", 
+            font=("Segoe UI", 9, "bold"), 
+            fg=self.color_slate, 
+            bg=self.color_card_bg
+        )
+        lbl_nom_title.pack(anchor="w", pady=(0, 15))
+        
+        # Auxiliar para criar labels de valor formatados
+        def create_val_label(parent, title_text):
+            lbl_title = tk.Label(parent, text=title_text, font=("Segoe UI", 9, "bold"), fg=self.color_muted, bg=self.color_card_bg)
+            lbl_title.pack(anchor="w")
+            
+            border_frame = tk.Frame(parent, bg=self.color_border, bd=1)
+            border_frame.pack(fill=tk.X, pady=(4, 10))
+            
+            lbl_val = tk.Label(
+                border_frame,
+                text="-",
+                font=("Consolas", 9),
+                fg=self.color_slate,
+                bg=self.color_input_bg,
+                anchor="w",
+                padx=10,
+                pady=6
+            )
+            lbl_val.pack(fill=tk.X)
+            return lbl_val
+
+        self.lbl_folder_val = create_val_label(nom_content, "Pasta no SharePoint / OneDrive:")
+        self.lbl_file_val = create_val_label(nom_content, "Arquivo Sincronizado:")
+
+        # --- COLUNA ESQUERDA: Painel de Controle ---
+        control_frame = tk.Frame(left_col, bg=self.color_bg)
+        control_frame.pack(fill=tk.X, pady=(0, 10))
         
         # Botão Toggle Principal (Iniciar/Parar) - Customizado e Flat com ícones Play/Pause em vetor
         self.btn_toggle_frame = tk.Frame(control_frame, bg=self.color_primary, cursor="hand2")
@@ -351,53 +409,151 @@ class CTARAutomationApp:
         )
         self.lbl_status.pack()
         
-        # --- 3. CONSOLE DE LOGS ---
-        log_card = tk.Frame(body_frame, bg=self.color_term_bg, bd=1, highlightthickness=1, highlightbackground=self.color_border)
-        log_card.pack(fill=tk.BOTH, expand=True)
+        # --- COLUNA DIREITA: Etapas do Processamento ---
+        stepper_card = tk.Frame(right_col, bg=self.color_card_bg, bd=1, highlightthickness=1, highlightbackground=self.color_border)
+        stepper_card.pack(fill=tk.BOTH, expand=True)
         
-        # Header do Log
-        log_header = tk.Frame(log_card, bg=self.color_term_bg, padx=15, pady=8)
-        log_header.pack(fill=tk.X)
+        stepper_content = tk.Frame(stepper_card, bg=self.color_card_bg, padx=20, pady=20)
+        stepper_content.pack(fill=tk.BOTH, expand=True)
         
-        lbl_log_title = tk.Label(
-            log_header, 
-            text=">_ LOG DE ATIVIDADES E HISTÓRICO", 
-            font=("Consolas", 9, "bold"), 
-            fg=self.color_term_fg, 
-            bg=self.color_term_bg
+        lbl_step_title = tk.Label(
+            stepper_content, 
+            text="ETAPAS DO PROCESSAMENTO", 
+            font=("Segoe UI", 9, "bold"), 
+            fg=self.color_primary, 
+            bg=self.color_card_bg
         )
-        lbl_log_title.pack(side=tk.LEFT)
+        lbl_step_title.pack(anchor="w", pady=(0, 2))
         
-        # Círculos de Controle macOS na Direita
-        controls_canvas = tk.Canvas(log_header, width=50, height=12, bg=self.color_term_bg, highlightthickness=0)
-        controls_canvas.pack(side=tk.RIGHT, padx=5)
-        controls_canvas.create_oval(5, 1, 15, 11, fill="#FF5F56", outline="")   # Vermelho
-        controls_canvas.create_oval(20, 1, 30, 11, fill="#FFBD2E", outline="")  # Amarelo
-        controls_canvas.create_oval(35, 1, 45, 11, fill="#27C93F", outline="")  # Verde
-        
-        # Caixa de Texto Console
-        self.log_area = scrolledtext.ScrolledText(
-            log_card, 
-            wrap=tk.WORD, 
-            height=10, 
-            font=('Consolas', 10),
-            bg=self.color_term_bg,
-            fg=self.color_term_fg,
-            insertbackground=self.color_white,
-            relief=tk.FLAT,
-            bd=10
+        lbl_step_desc = tk.Label(
+            stepper_content, 
+            text="Acompanhe o fluxo de processamento e arquivos", 
+            font=("Segoe UI", 9), 
+            fg=self.color_muted, 
+            bg=self.color_card_bg
         )
-        self.log_area.pack(fill=tk.BOTH, expand=True)
-        self.log_area.configure(state='disabled')
+        lbl_step_desc.pack(anchor="w", pady=(0, 20))
         
-        # Tags de Cor para o Log Console
-        self.log_area.tag_config('timestamp', foreground='#5C6370')
-        self.log_area.tag_config('info', foreground='#ABB2BF')
-        self.log_area.tag_config('start', foreground='#98C379') # Verde (OK)
-        self.log_area.tag_config('stop', foreground='#E06C75')  # Laranja/Vermelho
-        self.log_area.tag_config('warning', foreground='#E5C07B') # Amarelo (Warning)
+        # Definição das etapas
+        steps_info = [
+            ("Inicialização", "Carregar parâmetros e validar pastas", "📅"),
+            ("Leitura das gravações", "Identificar novos arquivos MP4", "🎥"),
+            ("Leitura dos documentos", "Identificar arquivos DOCX / CSV", "📄"),
+            ("Processamento", "Renomear e organizar por rodada", "🔄"),
+            ("Envio ao SharePoint", "Sincronizar com a pasta de destino", "☁️")
+        ]
+        
+        for idx, (title, desc, emoji) in enumerate(steps_info):
+            step_frame = tk.Frame(stepper_content, bg=self.color_card_bg)
+            step_frame.pack(fill=tk.X, pady=2)
+            
+            # Canvas do ícone e conector
+            canvas = tk.Canvas(step_frame, width=50, height=60, bg=self.color_card_bg, highlightthickness=0)
+            canvas.pack(side=tk.LEFT)
+            
+            # Textos
+            text_frame = tk.Frame(step_frame, bg=self.color_card_bg)
+            text_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0))
+            
+            lbl_t = tk.Label(text_frame, text=title, font=("Segoe UI", 10, "bold"), fg=self.color_muted, bg=self.color_card_bg)
+            lbl_t.pack(anchor="w")
+            
+            lbl_d = tk.Label(text_frame, text=desc, font=("Segoe UI", 8), fg=self.color_muted, bg=self.color_card_bg, justify=tk.LEFT, wraplength=300)
+            lbl_d.pack(anchor="w")
+            
+            lbl_time = tk.Label(text_frame, text="", font=("Segoe UI", 8), fg=self.color_muted, bg=self.color_card_bg)
+            lbl_time.pack(anchor="w")
+            
+            self.step_widgets[idx] = {
+                "canvas": canvas,
+                "title_label": lbl_t,
+                "desc_label": lbl_d,
+                "time_label": lbl_time,
+                "emoji": emoji
+            }
+            
+            # Desenhar estado inicial pendente
+            self.draw_step_icon(idx, "pending")
 
         self.log("Painel carregado. Pronto para monitorar arquivos CTAR.", "info")
+
+    def draw_step_icon(self, step_idx, state):
+        if step_idx not in self.step_widgets:
+            return
+        widgets = self.step_widgets[step_idx]
+        canvas = widgets["canvas"]
+        emoji = widgets["emoji"]
+        
+        canvas.delete("all")
+        
+        # Cores com base no estado
+        line_color = self.color_border
+        circle_bg = self.color_bg
+        circle_border = self.color_border
+        emoji_color = self.color_muted
+        
+        if state == "completed":
+            line_color = self.color_green
+            circle_bg = self.color_light_green
+            circle_border = self.color_green
+            emoji_color = self.color_green
+        elif state == "active":
+            line_color = self.color_border
+            circle_bg = self.color_primary
+            circle_border = self.color_primary
+            emoji_color = "white"
+            
+        # 1. Desenhar linhas conectoras verticalmente
+        # Linha para cima (se não for o primeiro)
+        if step_idx > 0:
+            prev_state = self.step_states.get(step_idx - 1)
+            up_color = self.color_green if (prev_state == "completed" and state == "completed") else self.color_border
+            canvas.create_line(25, 0, 25, 30, fill=up_color, width=2)
+            
+        # Linha para baixo (se não for o último)
+        if step_idx < 4:
+            next_state = self.step_states.get(step_idx + 1)
+            down_color = self.color_green if (state == "completed" and next_state == "completed") else self.color_border
+            canvas.create_line(25, 30, 25, 60, fill=down_color, width=2)
+            
+        # 2. Desenhar brilho (glow) se estiver ativo
+        if state == "active":
+            canvas.create_oval(10, 15, 40, 45, fill=self.color_light_red, outline="")
+            
+        # 3. Desenhar o círculo do ícone
+        canvas.create_oval(13, 18, 37, 42, fill=circle_bg, outline=circle_border, width=2)
+        
+        # 4. Desenhar o emoji no centro
+        canvas.create_text(25, 30, text=emoji, font=("Segoe UI Emoji", 10), fill=emoji_color)
+        
+        # Atualizar a cor das fontes dos labels
+        if state == "active":
+            widgets["title_label"].configure(fg=self.color_primary)
+            widgets["desc_label"].configure(fg=self.color_slate)
+        elif state == "completed":
+            widgets["title_label"].configure(fg=self.color_green)
+            widgets["desc_label"].configure(fg=self.color_muted)
+        else:
+            widgets["title_label"].configure(fg=self.color_muted)
+            widgets["desc_label"].configure(fg=self.color_muted)
+
+    def update_stepper(self, step_idx, state, timestamp_str=None):
+        self.step_states[step_idx] = state
+        
+        def _update():
+            self.draw_step_icon(step_idx, state)
+            if timestamp_str:
+                self.step_widgets[step_idx]["time_label"].configure(
+                    text=timestamp_str,
+                    fg=self.color_primary if state == "active" else (self.color_green if state == "completed" else self.color_muted)
+                )
+            # Redesenhar etapas vizinhas para atualizar cores das linhas conectoras
+            if step_idx > 0:
+                self.draw_step_icon(step_idx - 1, self.step_states[step_idx - 1])
+            if step_idx < 4:
+                self.draw_step_icon(step_idx + 1, self.step_states[step_idx + 1])
+                
+        self.root.after(0, _update)
 
     def draw_play_icon(self):
         self.btn_toggle_canvas.delete("all")
@@ -428,14 +584,13 @@ class CTARAutomationApp:
 
     def log(self, message, msg_type="info"):
         timestamp = time.strftime("[%H:%M:%S]")
-        self.root.after(0, self._append_log, timestamp, message, msg_type)
-
-    def _append_log(self, timestamp, message, msg_type):
-        self.log_area.configure(state='normal')
-        self.log_area.insert(tk.END, f"{timestamp} ", 'timestamp')
-        self.log_area.insert(tk.END, f"{message}\n", msg_type)
-        self.log_area.see(tk.END)
-        self.log_area.configure(state='disabled')
+        print(f"{timestamp} [{msg_type.upper()}] {message}")
+        try:
+            os.makedirs(os.path.dirname(self.log_filepath), exist_ok=True)
+            with open(self.log_filepath, "a", encoding="utf-8") as f:
+                f.write(f"{timestamp} [{msg_type.upper()}] {message}\n")
+        except Exception:
+            pass
 
     def browse_directory(self, var):
         directory = filedialog.askdirectory()
@@ -507,18 +662,27 @@ class CTARAutomationApp:
         
         self.log("Monitoramento iniciado. Observando alterações nas pastas de origem.", "start")
         
+        # Stepper: Ativar Inicialização
+        self.update_stepper(0, "active", time.strftime("%H:%M:%S"))
+        for i in range(1, 5):
+            self.update_stepper(i, "pending")
+            
         # Limpar e registrar arquivos que já existem no início para ignorá-los
         self.processed_files.clear()
         self.ignored_files.clear()
         for folder in [g_dir, d_dir]:
             if folder and os.path.exists(folder):
                 try:
-                    for entry in os.scandir(folder):
-                        if entry.is_file():
-                            stat = entry.stat()
-                            self.processed_files.add((entry.path, stat.st_mtime, stat.st_size))
+                    with os.scandir(folder) as entries:
+                        for entry in entries:
+                            if entry.is_file():
+                                stat = entry.stat()
+                                self.processed_files.add((entry.path, stat.st_mtime, stat.st_size))
                 except Exception:
                     pass
+        
+        # Stepper: Concluir Inicialização
+        self.update_stepper(0, "completed", time.strftime("%H:%M:%S"))
         
         # Iniciar thread do monitor
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
@@ -542,8 +706,13 @@ class CTARAutomationApp:
         self.set_inputs_state('normal')
         self.log("Monitoramento interrompido pelo usuário.", "stop")
         
+        # Stepper: Resetar tudo para pendente
+        for i in range(5):
+            self.update_stepper(i, "pending", "")
+            
         # Aguardar finalização da thread para evitar erros em testes unitários
         if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join(timeout=0.1)
             self.monitor_thread.join(timeout=0.1)
 
     def update_button_colors(self):
@@ -709,7 +878,6 @@ class CTARAutomationApp:
     def wait_for_file_ready(self, filepath, max_attempts=5, check_interval=1):
         attempts = 0
         last_size = -1
-        
         while attempts < max_attempts and self.is_monitoring:
             if not os.path.exists(filepath):
                 return False
@@ -723,14 +891,28 @@ class CTARAutomationApp:
                 pass
             attempts += 1
             time.sleep(check_interval)
-            
         return self.is_file_ready(filepath)
+
+    def update_nomenclature(self, folder_text, file_text):
+        def _update():
+            self.lbl_folder_val.configure(text=folder_text)
+            self.lbl_file_val.configure(text=file_text)
+        self.root.after(0, _update)
 
     def process_file(self, filepath, source_type):
         filename = os.path.basename(filepath)
+        
+        # 1. Resetar todas as etapas para pending no início do novo arquivo
+        for i in range(5):
+            self.update_stepper(i, "pending", "")
+            
+        # Ativar etapa de Inicialização
+        self.update_stepper(0, "active", time.strftime("%H:%M:%S"))
+        
         parsed = self.parse_ctar_filename(filename)
         
         if not parsed:
+            self.update_stepper(0, "pending", "")
             if filepath not in self.ignored_files:
                 self.log(f"Aviso: Arquivo '{filename}' possui 'CTAR' no nome mas não atende ao padrão esperado de ID e Nome de Empresa. Pulando.", "warning")
                 self.ignored_files.add(filepath)
@@ -738,19 +920,23 @@ class CTARAutomationApp:
             
         project_id, project_name, ext = parsed
         
-        # Definir tipo de arquivo
+        # Definir tipo de arquivo e categoria
         if ext in ['.mp4', '.mkv', '.avi', '.mov', '.webm']:
             prefix = "Gravação"
+            is_recording = True
         elif ext in ['.docx', '.doc', '.pdf', '.txt']:
             prefix = "Transcrição"
+            is_recording = False
         elif ext in ['.csv', '.xlsx', '.xls']:
             prefix = "Presença"
+            is_recording = False
         else:
             prefix = "Documento"
+            is_recording = False
 
         dest_root = self.dir_destino.get()
         
-        # 1. Procurar pasta existente com o mesmo ID para evitar duplicações
+        # Procurar pasta existente com o mesmo ID
         existing_folder = None
         if os.path.exists(dest_root):
             try:
@@ -764,14 +950,12 @@ class CTARAutomationApp:
         
         if existing_folder:
             target_folder_path = existing_folder
-            # Extrair o nome do projeto já existente para manter a padronização
             folder_name = os.path.basename(existing_folder)
             project_name = folder_name.split(" (ID ")[0].strip()
         else:
             target_folder_name = f"{project_name} (ID {project_id})"
             target_folder_path = os.path.join(dest_root, target_folder_name)
             
-        # 2. Obter a subpasta correspondente à rodada CTAR (ex: 1º CTAR, 2º CTAR)
         subfolder_name = self.get_ctar_subfolder(filename)
         final_folder_path = os.path.join(target_folder_path, subfolder_name)
         
@@ -781,16 +965,33 @@ class CTARAutomationApp:
         self.log(f"Detectado arquivo: '{filename}'", "info")
         self.log(f"  -> Identificado como: {prefix} | Projeto: {project_name} (ID: {project_id}) | Pasta: {subfolder_name}", "info")
         
+        # Concluir Inicialização
+        self.update_stepper(0, "completed", time.strftime("%H:%M:%S"))
+        
+        # Ativar etapa correspondente de Leitura
+        active_read_step = 1 if is_recording else 2
+        self.update_stepper(active_read_step, "active", time.strftime("%H:%M:%S"))
+        
         if not self.wait_for_file_ready(filepath):
             self.log(f"  -> Erro: O arquivo '{filename}' está bloqueado ou em gravação. Será reprocessado no próximo ciclo.", "warning")
+            self.update_stepper(active_read_step, "pending", "")
             return
+
+        # Concluir Leitura e ativar Processamento
+        self.update_stepper(active_read_step, "completed", time.strftime("%H:%M:%S"))
+        self.update_stepper(3, "active", time.strftime("%H:%M:%S"))
 
         try:
             os.makedirs(final_folder_path, exist_ok=True)
             
             if os.path.exists(target_filepath):
                 self.log(f"  -> Aviso: O arquivo '{new_filename}' já existe no destino. Pulando cópia para não sobrescrever.", "warning")
-                # Registrar metadados estáveis do arquivo de origem para não processar novamente
+                # Concluir Processamento e Envio ao SharePoint (já que já está lá)
+                self.update_stepper(3, "completed", time.strftime("%H:%M:%S"))
+                self.update_stepper(4, "completed", time.strftime("%H:%M:%S"))
+                # Atualizar Nomenclatura na UI
+                self.update_nomenclature(f"{project_name} (ID {project_id}) / {subfolder_name}", new_filename)
+                
                 try:
                     stat = os.stat(filepath)
                     self.processed_files.add((filepath, stat.st_mtime, stat.st_size))
@@ -799,6 +1000,19 @@ class CTARAutomationApp:
                 return
             
             shutil.copy2(filepath, target_filepath)
+            
+            # Concluir Processamento e ativar Envio ao SharePoint
+            self.update_stepper(3, "completed", time.strftime("%H:%M:%S"))
+            self.update_stepper(4, "active", time.strftime("%H:%M:%S"))
+            
+            # Simular tempo leve de sincronização
+            time.sleep(0.5)
+            
+            # Concluir Envio ao SharePoint
+            self.update_stepper(4, "completed", time.strftime("%H:%M:%S"))
+            
+            # Atualizar Nomenclatura na UI
+            self.update_nomenclature(f"{project_name} (ID {project_id}) / {subfolder_name}", new_filename)
             
             # Registrar metadados estáveis do arquivo copiado para não processar novamente
             try:
@@ -811,6 +1025,8 @@ class CTARAutomationApp:
             
         except Exception as e:
             self.log(f"  -> Falha crítica ao copiar o arquivo: {e}", "warning")
+            self.update_stepper(3, "pending", "")
+            self.update_stepper(4, "pending", "")
 
     def _monitor_loop(self):
         while self.is_monitoring:

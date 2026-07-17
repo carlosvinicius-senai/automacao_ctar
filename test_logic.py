@@ -27,7 +27,8 @@ class TestCTARLogic(unittest.TestCase):
         self.app.dir_destino.set(self.dir_destino)
 
     def tearDown(self):
-        # Destruir a janela e limpar arquivos temporários
+        # Destruir o app e suas referências do Tkinter primeiro
+        self.app = None
         self.root.destroy()
         shutil.rmtree(self.test_dir)
 
