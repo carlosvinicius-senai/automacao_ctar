@@ -13,7 +13,7 @@ from tkinter import scrolledtext
 CONFIG_FILE = "config.json"
 
 class CTARAutomationApp:
-    VERSION = "1.0.4"
+    VERSION = "1.0.5"
 
     def __init__(self, root):
         self.root = root
@@ -65,6 +65,7 @@ class CTARAutomationApp:
         self.monitor_thread = None
         self.ignored_files = set()
         self.processed_files = set()
+        self.failed_files = set()
         
         # Estados das etapas do processamento (0 a 4)
         self.step_states = {0: "pending", 1: "pending", 2: "pending", 3: "pending", 4: "pending"}
@@ -364,9 +365,71 @@ class CTARAutomationApp:
         self.lbl_folder_val = create_val_label(nom_content, "Pasta no SharePoint / OneDrive:")
         self.lbl_file_val = create_val_label(nom_content, "Arquivo Sincronizado:")
 
+        # --- COLUNA ESQUERDA: Card de Aviso / Atenção (Oculto por padrão) ---
+        self.alert_card = tk.Frame(
+            left_col,
+            bg="#FEF2F2",
+            bd=1,
+            highlightthickness=1,
+            highlightbackground="#FECACA",
+        )
+        alert_content = tk.Frame(self.alert_card, bg="#FEF2F2", padx=16, pady=14)
+        alert_content.pack(fill=tk.BOTH, expand=True)
+
+        alert_header = tk.Frame(alert_content, bg="#FEF2F2")
+        alert_header.pack(fill=tk.X, pady=(0, 6))
+
+        self.lbl_alert_title = tk.Label(
+            alert_header,
+            text="⚠️ Atenção no envio",
+            font=("Segoe UI", 10, "bold"),
+            fg="#B91C1C",
+            bg="#FEF2F2",
+            anchor="w",
+        )
+        self.lbl_alert_title.pack(side=tk.LEFT)
+
+        self.btn_retry_alert = tk.Label(
+            alert_header,
+            text="Tentar novamente",
+            font=("Segoe UI", 8, "bold"),
+            fg="#FFFFFF",
+            bg="#DC2626",
+            padx=10,
+            pady=3,
+            cursor="hand2",
+        )
+        self.btn_retry_alert.pack(side=tk.RIGHT)
+        self.btn_retry_alert.bind("<Button-1>", lambda e: self.retry_failed_files())
+
+        self.lbl_alert_msg = tk.Label(
+            alert_content,
+            text="",
+            font=("Segoe UI", 9),
+            fg="#7F1D1D",
+            bg="#FEF2F2",
+            anchor="w",
+            justify=tk.LEFT,
+            wraplength=420,
+        )
+        self.lbl_alert_msg.pack(fill=tk.X, pady=(0, 4))
+
+        self.lbl_alert_hint = tk.Label(
+            alert_content,
+            text="",
+            font=("Segoe UI", 8),
+            fg="#991B1B",
+            bg="#FEF2F2",
+            anchor="w",
+            justify=tk.LEFT,
+            wraplength=420,
+        )
+        self.lbl_alert_hint.pack(fill=tk.X)
+
         # --- COLUNA ESQUERDA: Painel de Controle ---
-        control_frame = tk.Frame(left_col, bg=self.color_bg)
-        control_frame.pack(fill=tk.X, pady=(0, 10))
+        self.control_frame = tk.Frame(left_col, bg=self.color_bg)
+        self.control_frame.pack(fill=tk.X, pady=(0, 10))
+        control_frame = self.control_frame
         
         # Botão Toggle Principal (Iniciar/Parar) - Customizado e Flat com ícones Play/Pause em vetor
         self.btn_toggle_frame = tk.Frame(control_frame, bg=self.color_primary, cursor="hand2")
@@ -670,6 +733,8 @@ class CTARAutomationApp:
         # Limpar e registrar arquivos que já existem no início para ignorá-los
         self.processed_files.clear()
         self.ignored_files.clear()
+        self.failed_files.clear()
+        self.hide_error_alert()
         for folder in [g_dir, d_dir]:
             if folder and os.path.exists(folder):
                 try:
@@ -709,6 +774,7 @@ class CTARAutomationApp:
         # Stepper: Resetar tudo para pendente
         for i in range(5):
             self.update_stepper(i, "pending", "")
+        self.hide_error_alert()
             
         # Aguardar finalização da thread para evitar erros em testes unitários
         if self.monitor_thread and self.monitor_thread.is_alive():
@@ -747,13 +813,135 @@ class CTARAutomationApp:
             self.btn_documentos.bind("<Button-1>", lambda e: self.browse_directory(self.dir_documentos))
             self.btn_destino.bind("<Button-1>", lambda e: self.browse_directory(self.dir_destino))
 
+    CATEGORY_PROPOSTAS = "03 – Propostas e Orçamentos"
+    CTAR_SUBFOLDER = "CTAR"
+    LEADING_ID_RE = re.compile(r"^\s*(?:ID\s*)?(\d+)(?!\d)", re.IGNORECASE)
+
+    def _normalize_name(self, name):
+        return " ".join(name.strip().split()).casefold()
+
+    def _normalize_category_name(self, name):
+        normalized = re.sub(r"[–—-]", "-", name)
+        normalized = re.sub(r"\s*-\s*", " - ", normalized)
+        return self._normalize_name(normalized)
+
+    def _extract_leading_project_id(self, folder_name):
+        match = self.LEADING_ID_RE.match(folder_name)
+        if not match:
+            return None
+        return int(match.group(1))
+
+    def _list_subdirs(self, path):
+        with os.scandir(path) as entries:
+            return [entry for entry in entries if entry.is_dir()]
+
+    def resolve_hub_destination(self, dest_root, company_name, project_id):
+        """Resolve o caminho Empresa -> Projeto (ID no início) -> 03 – Propostas e Orçamentos -> CTAR."""
+        if not dest_root or not os.path.exists(dest_root):
+            return None, f"Diretório de destino '{dest_root}' não encontrado."
+
+        try:
+            company_subdirs = self._list_subdirs(dest_root)
+            target_company_norm = self._normalize_name(company_name)
+            company_matches = [
+                entry for entry in company_subdirs
+                if self._normalize_name(entry.name) == target_company_norm
+            ]
+            if not company_matches:
+                return None, f"A pasta da empresa '{company_name}' não foi encontrada na pasta do SharePoint."
+            if len(company_matches) > 1:
+                names = ", ".join(e.name for e in company_matches)
+                return None, f"Existe mais de uma pasta parecida para a empresa '{company_name}': {names}."
+            company_entry = company_matches[0]
+
+            target_id_int = int(project_id)
+            project_subdirs = self._list_subdirs(company_entry.path)
+            project_matches = [
+                entry for entry in project_subdirs
+                if self._extract_leading_project_id(entry.name) == target_id_int
+            ]
+            if not project_matches:
+                return None, f"Nenhuma pasta iniciando com o ID {project_id} foi encontrada dentro da empresa '{company_entry.name}'."
+            if len(project_matches) > 1:
+                names = ", ".join(e.name for e in project_matches)
+                return None, f"Existe mais de uma pasta com o ID {project_id} na empresa '{company_entry.name}': {names}."
+            project_entry = project_matches[0]
+
+            category_subdirs = self._list_subdirs(project_entry.path)
+            expected_category = self._normalize_category_name(self.CATEGORY_PROPOSTAS)
+            category_matches = [
+                entry for entry in category_subdirs
+                if self._normalize_category_name(entry.name) == expected_category
+            ]
+            if not category_matches:
+                return None, f"A pasta '{self.CATEGORY_PROPOSTAS}' não foi encontrada dentro do projeto '{project_entry.name}'."
+            if len(category_matches) > 1:
+                names = ", ".join(e.name for e in category_matches)
+                return None, f"Existe mais de uma pasta '{self.CATEGORY_PROPOSTAS}' no projeto '{project_entry.name}': {names}."
+            category_entry = category_matches[0]
+
+            ctar_subdirs = self._list_subdirs(category_entry.path)
+            ctar_matches = [
+                entry for entry in ctar_subdirs
+                if self._normalize_name(entry.name) == "ctar"
+            ]
+            if len(ctar_matches) > 1:
+                names = ", ".join(e.name for e in ctar_matches)
+                return None, f"Existe mais de uma subpasta 'CTAR' dentro de '{category_entry.name}': {names}."
+
+            ctar_path = (
+                ctar_matches[0].path
+                if ctar_matches
+                else os.path.join(category_entry.path, self.CTAR_SUBFOLDER)
+            )
+            return {
+                "company_folder": company_entry.name,
+                "project_folder": project_entry.name,
+                "category_folder": category_entry.name,
+                "ctar_path": ctar_path,
+                "ctar_exists": bool(ctar_matches),
+            }, None
+
+        except PermissionError as e:
+            return None, f"Sem permissão para acessar pastas no Hub: {e}"
+        except OSError as e:
+            return None, f"Erro de acesso ao sistema de arquivos do Hub: {e}"
+
     def parse_ctar_filename(self, filename):
         name_without_ext, ext = os.path.splitext(filename)
-        
+
         # Remover sufixos de cópias do Windows (ex: " (1)") no final do nome
         name_without_ext = re.sub(r"\s*\(\d+\)\s*$", "", name_without_ext)
-        
-        # 1. Regra 1: Extrair o ID do projeto (ID seguido de números)
+
+        # Remover prefixo opcional de rodada e/ou tag CTAR antes de interpretar o padrão ID | EMPRESA | TITULO
+        working_name = re.sub(
+            r"^\s*(?:\d+\s*(?:º|°|o|a)?\s*)?(?:\[\s*CTAR\s*\]|CTAR\b)\s*[-_:|]*\s*",
+            "",
+            name_without_ext,
+            flags=re.IGNORECASE,
+        )
+        working_name = re.sub(r"^\s*\d+\s*(?:º|°)\s*", "", working_name)
+
+        # 1. Novo padrão prioritário: ID | EMPRESA | TITULO (com separadores já mapeados no Windows)
+        parts = None
+        if re.search(r"\s{2,}", working_name):
+            parts = re.split(r"\s{2,}", working_name)
+        elif "|" in working_name:
+            parts = working_name.split("|")
+        elif "-" in working_name:
+            parts = working_name.split("-")
+        elif "_" in working_name:
+            parts = working_name.split("_")
+
+        if parts and len(parts) >= 2:
+            first_part = parts[0].strip()
+            if re.fullmatch(r"\d+", first_part):
+                company_raw = " ".join(parts[1].strip().split()).strip("-_ ")
+                title_raw = " ".join(p.strip() for p in parts[2:] if p.strip())
+                if company_raw:
+                    return first_part, company_raw, title_raw, ext.lower()
+
+        # 2. Fallback para o padrão legado: ID seguido de números (ex: [CTAR] ID 1282 | Mangotex | ...)
         id_match = re.search(r"ID\s*(\d+)", name_without_ext, re.IGNORECASE)
         if not id_match:
             return None
@@ -854,12 +1042,16 @@ class CTARAutomationApp:
         name_clean, _ = os.path.splitext(project_name)
         project_name = name_clean.strip()
         
-        return project_id, project_name, ext.lower()
+        return project_id, project_name, "", ext.lower()
 
     def get_ctar_subfolder(self, filename):
-        # Detectar número de rodada do CTAR antes do prefixo [CTAR]
-        # Ex: "2º [CTAR] ID 1495..." ou "2 [CTAR]..."
-        match = re.match(r"^\s*(\d+)(?:º|°|o|a)?\s*\[CTAR\]", filename, re.IGNORECASE)
+        # Detectar número de rodada do CTAR no início do nome (ex: "2º [CTAR]..." ou "2º 2062...")
+        # Exige marcador ordinal (º/°) ou [CTAR] para não confundir o ID do projeto com a rodada.
+        match = re.match(
+            r"^\s*(\d+)\s*(?:(?:º|°)\b|(?:º|°|o|a)?\s*(?:\[\s*CTAR\s*\]|CTAR\b))",
+            filename,
+            re.IGNORECASE,
+        )
         if match:
             num = match.group(1)
             return f"{num}º CTAR"
@@ -899,6 +1091,27 @@ class CTARAutomationApp:
             self.lbl_file_val.configure(text=file_text)
         self.root.after(0, _update)
 
+    def show_error_alert(self, title, message, hint="Corrija a pasta no SharePoint/OneDrive e clique em 'Tentar novamente'."):
+        def _show():
+            self.lbl_alert_title.configure(text=f"⚠️ {title}")
+            self.lbl_alert_msg.configure(text=message)
+            self.lbl_alert_hint.configure(text=hint)
+            if not self.alert_card.winfo_ismapped():
+                self.alert_card.pack(fill=tk.X, pady=(0, 15), before=self.control_frame)
+        self.root.after(0, _show)
+
+    def hide_error_alert(self):
+        def _hide():
+            if self.alert_card.winfo_ismapped():
+                self.alert_card.pack_forget()
+        self.root.after(0, _hide)
+
+    def retry_failed_files(self):
+        self.failed_files.clear()
+        self.ignored_files.clear()
+        self.hide_error_alert()
+        self.log("Reprocessamento manual solicitado pelo usuário.", "info")
+
     def process_file(self, filepath, source_type):
         filename = os.path.basename(filepath)
         
@@ -914,11 +1127,11 @@ class CTARAutomationApp:
         if not parsed:
             self.update_stepper(0, "pending", "")
             if filepath not in self.ignored_files:
-                self.log(f"Aviso: Arquivo '{filename}' possui 'CTAR' no nome mas não atende ao padrão esperado de ID e Nome de Empresa. Pulando.", "warning")
+                self.log(f"Aviso: Arquivo '{filename}' não atende ao padrão esperado (ID | Empresa | Título). Pulando.", "warning")
                 self.ignored_files.add(filepath)
             return
             
-        project_id, project_name, ext = parsed
+        project_id, project_name, title, ext = parsed
         
         # Definir tipo de arquivo e categoria
         if ext in ['.mp4', '.mkv', '.avi', '.mov', '.webm']:
@@ -935,35 +1148,35 @@ class CTARAutomationApp:
             is_recording = False
 
         dest_root = self.dir_destino.get()
-        
-        # Procurar pasta existente com o mesmo ID
-        existing_folder = None
-        if os.path.exists(dest_root):
+        hub_info, hub_error = self.resolve_hub_destination(dest_root, project_name, project_id)
+        if hub_error:
+            self.update_stepper(0, "pending", "")
+            self.log(f"Erro ao resolver destino no Hub para '{filename}': {hub_error}", "error")
+            self.show_error_alert(
+                "Não foi possível enviar o arquivo",
+                f"Arquivo: {filename}\n{hub_error}",
+                "Ajuste ou sincronize a pasta no SharePoint/OneDrive e clique em 'Tentar novamente'.",
+            )
             try:
-                with os.scandir(dest_root) as entries:
-                    for entry in entries:
-                        if entry.is_dir() and entry.name.endswith(f" (ID {project_id})"):
-                            existing_folder = entry.path
-                            break
+                stat = os.stat(filepath)
+                self.failed_files.add((filepath, stat.st_mtime, stat.st_size))
             except Exception:
-                pass
-        
-        if existing_folder:
-            target_folder_path = existing_folder
-            folder_name = os.path.basename(existing_folder)
-            project_name = folder_name.split(" (ID ")[0].strip()
-        else:
-            target_folder_name = f"{project_name} (ID {project_id})"
-            target_folder_path = os.path.join(dest_root, target_folder_name)
-            
+                self.failed_files.add(filepath)
+            return
+
+        resolved_company = hub_info["company_folder"]
         subfolder_name = self.get_ctar_subfolder(filename)
-        final_folder_path = os.path.join(target_folder_path, subfolder_name)
+        final_folder_path = os.path.join(hub_info["ctar_path"], subfolder_name)
         
-        new_filename = f"{prefix} CTAR (ID {project_id}) - {project_name}{ext}"
+        new_filename = f"{prefix} CTAR (ID {project_id}) - {resolved_company}{ext}"
         target_filepath = os.path.join(final_folder_path, new_filename)
+        display_folder = (
+            f"{hub_info['company_folder']} / {hub_info['project_folder']} / "
+            f"{hub_info['category_folder']} / {self.CTAR_SUBFOLDER} / {subfolder_name}"
+        )
         
         self.log(f"Detectado arquivo: '{filename}'", "info")
-        self.log(f"  -> Identificado como: {prefix} | Projeto: {project_name} (ID: {project_id}) | Pasta: {subfolder_name}", "info")
+        self.log(f"  -> Identificado como: {prefix} | Empresa: {resolved_company} (ID: {project_id}) | Pasta: {subfolder_name}", "info")
         
         # Concluir Inicialização
         self.update_stepper(0, "completed", time.strftime("%H:%M:%S"))
@@ -982,6 +1195,8 @@ class CTARAutomationApp:
         self.update_stepper(3, "active", time.strftime("%H:%M:%S"))
 
         try:
+            if not hub_info["ctar_exists"]:
+                self.log(f"  -> Subpasta '{self.CTAR_SUBFOLDER}' criada automaticamente em '{hub_info['category_folder']}'.", "info")
             os.makedirs(final_folder_path, exist_ok=True)
             
             if os.path.exists(target_filepath):
@@ -990,7 +1205,7 @@ class CTARAutomationApp:
                 self.update_stepper(3, "completed", time.strftime("%H:%M:%S"))
                 self.update_stepper(4, "completed", time.strftime("%H:%M:%S"))
                 # Atualizar Nomenclatura na UI
-                self.update_nomenclature(f"{project_name} (ID {project_id}) / {subfolder_name}", new_filename)
+                self.update_nomenclature(display_folder, new_filename)
                 
                 try:
                     stat = os.stat(filepath)
@@ -1012,7 +1227,8 @@ class CTARAutomationApp:
             self.update_stepper(4, "completed", time.strftime("%H:%M:%S"))
             
             # Atualizar Nomenclatura na UI
-            self.update_nomenclature(f"{project_name} (ID {project_id}) / {subfolder_name}", new_filename)
+            self.update_nomenclature(display_folder, new_filename)
+            self.hide_error_alert()
             
             # Registrar metadados estáveis do arquivo copiado para não processar novamente
             try:
@@ -1024,9 +1240,19 @@ class CTARAutomationApp:
             self.log(f"  -> Sucesso: Arquivo copiado e renomeado para '{os.path.basename(target_filepath)}'", "start")
             
         except Exception as e:
-            self.log(f"  -> Falha crítica ao copiar o arquivo: {e}", "warning")
+            self.log(f"  -> Falha crítica ao copiar o arquivo: {e}", "error")
+            self.show_error_alert(
+                "Falha ao enviar o arquivo",
+                f"Não foi possível copiar '{filename}' para o destino.\nMotivo: {e}",
+                "Verifique se o arquivo não está aberto e se há permissão/espaço na pasta de destino.",
+            )
             self.update_stepper(3, "pending", "")
             self.update_stepper(4, "pending", "")
+            try:
+                stat = os.stat(filepath)
+                self.failed_files.add((filepath, stat.st_mtime, stat.st_size))
+            except Exception:
+                self.failed_files.add(filepath)
 
     def _monitor_loop(self):
         while self.is_monitoring:
@@ -1047,7 +1273,25 @@ class CTARAutomationApp:
             return
             
         try:
-            for entry in os.scandir(folder_path):
+            current_paths = set()
+            entries = list(os.scandir(folder_path))
+            for entry in entries:
+                if entry.is_file():
+                    current_paths.add(entry.path)
+
+            # Se um arquivo que falhou/foi ignorado foi removido da pasta, limpar o registro
+            # para permitir reprocessamento caso seja adicionado novamente.
+            self.failed_files = {
+                item for item in self.failed_files
+                if (item[0] if isinstance(item, tuple) else item) in current_paths
+                or not (item[0] if isinstance(item, tuple) else item).startswith(folder_path)
+            }
+            self.ignored_files = {
+                path for path in self.ignored_files
+                if path in current_paths or not path.startswith(folder_path)
+            }
+
+            for entry in entries:
                 if not self.is_monitoring:
                     break
                 if entry.is_file():
@@ -1066,9 +1310,10 @@ class CTARAutomationApp:
                         
                     if file_key in self.processed_files or filepath in self.processed_files:
                         continue
-                        
-                    if "CTAR" in filename.upper():
-                        self.process_file(filepath, source_type)
+                    if filepath in self.ignored_files or file_key in self.failed_files or filepath in self.failed_files:
+                        continue
+
+                    self.process_file(filepath, source_type)
         except Exception as e:
             pass
 
