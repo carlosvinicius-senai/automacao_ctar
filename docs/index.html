@@ -3,30 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Guia Rápido — Automação CTAR</title>
+  <title>Automação CTAR — Guia de Instalação e Uso</title>
   <style>
     :root {
-      --primary: #D72042;
-      --primary-dark: #B71C1C;
-      --bg: #F8FAFC;
-      --card: #FFFFFF;
-      --border: #CBD5E1;
-      --text: #0F172A;
-      --muted: #334155;
-      --warn-bg: #FEF2F2;
-      --warn-border: #FCA5A5;
-      --warn-text: #7F1D1D;
-      --info-bg: #EFF6FF;
-      --info-border: #93C5FD;
-      --info-text: #1E3A8A;
-      --ok-bg: #F0FDF4;
-      --ok-border: #86EFAC;
-      --ok-text: #14532D;
+      --bg: #FFFFFF;
+      --bg-subtle: #F9FAFB;
+      --border: #EAECF0;
+      --border-strong: #D0D5DD;
+      --text: #101828;
+      --text-secondary: #475467;
+      --text-muted: #667085;
+      --accent: #D72042;
+      --accent-hover: #B91C1C;
+      --accent-soft: #FFF1F3;
+      --warn-bg: #FEF3F2;
+      --warn-border: #F04438;
+      --warn-text: #7A271A;
+      --info-bg: #F8FAFC;
+      --info-border: #98A2B3;
+      --radius: 10px;
     }
 
     @page {
       size: A4;
-      margin: 14mm 15mm;
+      margin: 14mm 16mm;
     }
 
     * {
@@ -35,170 +35,374 @@
       print-color-adjust: exact;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-size: 14px;
-      line-height: 1.55;
+      font-size: 15px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .header {
-      background: var(--card);
-      border-bottom: 2px solid var(--primary);
-      padding: 18px 20px;
+    /* Topbar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
     }
 
-    .header-inner {
-      max-width: 780px;
+    .topbar-inner {
+      max-width: 1040px;
       margin: 0 auto;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: space-between;
+      gap: 16px;
     }
 
-    .logo {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
+    .brand {
       display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 15px;
+      font-weight: 700;
       flex-shrink: 0;
     }
 
-    .header h1 {
-      margin: 0;
-      font-size: 20px;
+    .brand-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       color: var(--text);
     }
 
-    .header p {
-      margin: 3px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .container {
-      max-width: 780px;
-      margin: 20px auto 36px;
-      padding: 0 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .card {
-      background: var(--card);
+    .version-pill {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
-      padding: 16px 20px;
+      text-decoration: none;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+      transition: background 0.15s ease;
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-subtle);
+    }
+
+    /* Layout 2 Colunas */
+    .layout {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 24px 72px;
+      display: grid;
+      grid-template-columns: 220px minmax(0, 680px);
+      gap: 56px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 84px;
+    }
+
+    .sidebar-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 0 0 12px;
+    }
+
+    .nav-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-left: 1px solid var(--border);
+    }
+
+    .nav-list a {
+      display: block;
+      padding: 7px 0 7px 14px;
+      margin-left: -1px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .nav-list a:hover {
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    /* Conteúdo principal */
+    .doc-header {
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 36px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .doc-header h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: -0.025em;
+      color: var(--text);
+    }
+
+    .doc-header p {
+      margin: 0;
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+
+    .step-section {
+      padding-bottom: 36px;
+      margin-bottom: 36px;
+      border-bottom: 1px solid var(--border);
       break-inside: avoid;
       page-break-inside: avoid;
     }
 
-    .step-badge {
-      display: inline-block;
-      background: var(--primary);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 9px;
+    .step-section:last-of-type {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .step-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
       border-radius: 999px;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
 
     h2 {
-      margin: 0 0 8px;
-      font-size: 16px;
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
       color: var(--text);
     }
 
     p {
-      margin: 6px 0;
-      color: var(--muted);
+      margin: 0 0 14px;
+      color: var(--text-secondary);
     }
 
-    ul, ol {
-      margin: 8px 0 0;
-      padding-left: 20px;
-      color: var(--muted);
+    strong {
+      color: var(--text);
+      font-weight: 600;
     }
 
-    li { margin-bottom: 6px; }
-
-    strong { color: var(--text); }
-
-    .link-box {
-      margin-top: 10px;
-      padding: 10px 14px;
-      background: #F1F5F9;
+    code {
+      font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
+      font-size: 13px;
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      color: var(--text);
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+
+    /* Botão e caixa de link */
+    .download-box {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-top: 12px;
     }
 
-    .link-url {
-      font-family: Consolas, monospace;
+    .download-url {
+      font-family: "Consolas", monospace;
       font-size: 12.5px;
-      color: var(--primary-dark);
+      color: var(--text-secondary);
       word-break: break-all;
+      text-decoration: none;
+    }
+
+    .download-url:hover {
+      color: var(--accent);
       text-decoration: underline;
     }
 
-    .btn {
-      display: inline-block;
-      background: var(--primary);
-      color: #fff;
-      text-decoration: none;
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #FFFFFF;
+      font-size: 13.5px;
       font-weight: 600;
-      font-size: 13px;
-      padding: 7px 14px;
-      border-radius: 6px;
+      text-decoration: none;
+      border-radius: 8px;
       white-space: nowrap;
+      transition: background 0.15s ease;
     }
 
-    .alert {
-      margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 6px;
-      border: 1px solid;
-      font-size: 13.5px;
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    /* Callouts minimalistas */
+    .callout {
+      padding: 14px 16px;
+      border-radius: 0 8px 8px 0;
+      border-left: 3px solid;
+      margin-top: 14px;
+      font-size: 14px;
       break-inside: avoid;
       page-break-inside: avoid;
     }
 
-    .alert-warn {
+    .callout-warn {
       background: var(--warn-bg);
-      border-color: var(--warn-border);
+      border-left-color: var(--warn-border);
       color: var(--warn-text);
     }
 
-    .alert-info {
+    .callout-info {
       background: var(--info-bg);
-      border-color: var(--info-border);
-      color: var(--info-text);
+      border-left-color: var(--info-border);
+      color: var(--text-secondary);
     }
 
-    .alert-ok {
-      background: var(--ok-bg);
-      border-color: var(--ok-border);
-      color: var(--ok-text);
+    .callout-title {
+      display: block;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
     }
 
-    .alert-title {
-      font-weight: 700;
-      margin-bottom: 4px;
+    .callout-warn .callout-title {
+      color: #912018;
+    }
+
+    ol.clean-list {
+      margin: 8px 0 0;
+      padding-left: 20px;
+      color: var(--text-secondary);
+    }
+
+    .callout-warn ol.clean-list {
+      color: var(--warn-text);
+    }
+
+    ol.clean-list li {
+      margin-bottom: 8px;
+    }
+
+    ol.clean-list li:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Lista estruturada de pastas */
+    .folder-list {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 14px 0 20px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .folder-row {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      align-items: start;
+    }
+
+    .folder-row:last-child {
+      border-bottom: none;
+    }
+
+    .folder-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .folder-desc {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+    }
+
+    /* Fluxo de caminho */
+    .flow-label {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
       display: block;
     }
 
@@ -207,216 +411,302 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 6px;
-      margin-top: 10px;
-      padding: 12px;
-      background: #F8FAFC;
+      padding: 12px 14px;
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius);
       font-size: 12.5px;
+      font-weight: 500;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .node {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: var(--text);
+    }
+
+    .node.auto {
+      border-color: #FDA29B;
+      background: var(--accent-soft);
+      color: #B42318;
       font-weight: 600;
+    }
+
+    .sep {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* FAQ estilo Untitled UI */
+    .faq-list {
+      border-top: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    details.faq-item {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
       break-inside: avoid;
       page-break-inside: avoid;
     }
 
-    .path-node {
-      background: #fff;
-      border: 1px solid var(--border);
-      padding: 4px 9px;
-      border-radius: 5px;
+    details.faq-item summary {
+      list-style: none;
+      cursor: pointer;
+      font-size: 14.5px;
+      font-weight: 600;
       color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
 
-    .path-node.highlight {
-      border-color: var(--primary);
-      color: var(--primary);
+    details.faq-item summary::-webkit-details-marker {
+      display: none;
     }
 
-    .arrow {
-      color: var(--muted);
-      font-weight: 700;
+    details.faq-item summary::after {
+      content: "+";
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--text-muted);
+      flex-shrink: 0;
     }
 
-    .folder-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-      margin-top: 10px;
+    details.faq-item[open] summary::after {
+      content: "−";
     }
 
-    .folder-item {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 14px;
-      background: #F8FAFC;
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-
-    .folder-item h3 {
-      margin: 0 0 2px;
+    details.faq-item p {
+      margin: 8px 0 0;
       font-size: 14px;
-      color: var(--text);
+      color: var(--text-secondary);
     }
 
-    .folder-item p {
-      margin: 0;
-      font-size: 13px;
+    /* Responsivo */
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding-top: 24px;
+      }
+      .sidebar {
+        display: none;
+      }
+      .folder-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
     }
 
-    code {
-      background: #E2E8F0;
-      color: #0F172A;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: Consolas, monospace;
-      font-size: 12.5px;
-    }
-
-    footer {
-      text-align: center;
-      color: #64748B;
-      font-size: 11.5px;
-      margin-top: 4px;
-    }
-
+    /* Impressão / PDF */
     @media print {
       body {
-        background: #FFFFFF;
         font-size: 12.5px;
+        line-height: 1.5;
       }
-      .header {
-        padding: 10px 0 12px;
+      .topbar {
+        position: static;
+        border-bottom: 1px solid var(--border);
       }
-      .container {
-        margin: 12px auto 0;
-        padding: 0;
+      .topbar-inner {
+        padding: 0 0 12px;
         max-width: 100%;
-        gap: 11px;
       }
-      .card {
-        padding: 13px 16px;
+      .btn-ghost,
+      .btn-primary,
+      .sidebar {
+        display: none !important;
       }
-      .btn {
+      .layout {
+        display: block;
+        max-width: 100%;
+        padding: 18px 0 0;
+      }
+      .doc-header {
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+      }
+      .doc-header h1 {
+        font-size: 22px;
+      }
+      .doc-header p {
+        font-size: 13.5px;
+      }
+      .step-section {
+        padding-bottom: 18px;
+        margin-bottom: 18px;
+      }
+      details.faq-item summary::after {
         display: none;
+      }
+      details.faq-item:not([open]) > p {
+        display: block;
       }
     }
   </style>
 </head>
 <body>
 
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo">🔄</div>
-      <div>
-        <h1>Automação CTAR — Guia de Instalação e Uso</h1>
-        <p>Passo a passo para baixar pelo Google Chrome, liberar os avisos após o download e configurar as pastas.</p>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span class="brand-title">Automação CTAR</span>
+        <span class="version-pill">v1.0.5</span>
       </div>
+      <a class="btn-ghost" href="./Manual_Instalacao_CTAR.pdf" download>
+        Baixar PDF
+      </a>
     </div>
   </header>
 
-  <main class="container">
+  <div class="layout">
+    <aside class="sidebar" aria-label="Navegação do guia">
+      <p class="sidebar-label">Nesta página</p>
+      <ul class="nav-list">
+        <li><a href="#passo-1">1. Baixar pelo Chrome</a></li>
+        <li><a href="#passo-2">2. Liberar os 2 avisos</a></li>
+        <li><a href="#passo-3">3. Configurar as pastas</a></li>
+        <li><a href="#passo-4">4. Iniciar monitoramento</a></li>
+        <li><a href="#faq">Dúvidas frequentes</a></li>
+      </ul>
+    </aside>
 
-    <!-- PASSO 1 -->
-    <section class="card">
-      <span class="step-badge">Passo 1</span>
-      <h2>Baixar o instalador pelo Google Chrome</h2>
-      <p>
-        Abra o link abaixo <strong>pelo navegador Google Chrome</strong> (para garantir que o download seja concluído sem bloqueios) e baixe o arquivo <code>Setup_Automacao_CTAR.exe</code> na seção <strong>Assets</strong> da versão mais recente:
-      </p>
-      <div class="link-box">
-        <a class="link-url" href="https://github.com/carlosvinicius-senai/automacao_ctar/releases/latest" target="_blank" rel="noopener noreferrer">
-          https://github.com/carlosvinicius-senai/automacao_ctar/releases/latest
-        </a>
-        <a class="btn" href="https://github.com/carlosvinicius-senai/automacao_ctar/releases/latest" target="_blank" rel="noopener noreferrer">
-          Abrir no Chrome
-        </a>
+    <main>
+      <div class="doc-header">
+        <span class="eyebrow">Guia de Instalação e Configuração</span>
+        <h1>Como instalar e usar a Automação CTAR</h1>
+        <p>Siga os 4 passos abaixo para baixar o instalador, liberar a execução no Windows e configurar as pastas de sincronização.</p>
       </div>
-    </section>
 
-    <!-- PASSO 2 -->
-    <section class="card">
-      <span class="step-badge">Passo 2</span>
-      <h2>Liberar os 2 avisos de "arquivo suspeito" após o download</h2>
-      <p>
-        <strong>Depois que o download terminar</strong>, ao abrir o <code>Setup_Automacao_CTAR.exe</code> (e ao iniciar o aplicativo), o sistema vai exibir <strong>2 vezes</strong> uma caixa informando que o arquivo é suspeito. Isso é normal porque se trata de um programa interno (de terceiro, sem assinatura comercial).
-      </p>
+      <!-- PASSO 1 -->
+      <section id="passo-1" class="step-section">
+        <div class="step-heading">
+          <span class="step-num">1</span>
+          <h2>Baixar o instalador pelo Google Chrome</h2>
+        </div>
+        <p>
+          Abra o link abaixo <strong>pelo navegador Google Chrome</strong> (para conseguir concluir o download sem bloqueios) e clique no arquivo <code>Setup_Automacao_CTAR.exe</code> na seção <strong>Assets</strong> da versão mais recente.
+        </p>
+        <div class="download-box">
+          <a class="download-url" href="https://github.com/carlosvinicius-senai/automacao_ctar/releases/latest" target="_blank" rel="noopener noreferrer">
+            https://github.com/carlosvinicius-senai/automacao_ctar/releases/latest
+          </a>
+          <a class="btn-primary" href="https://github.com/carlosvinicius-senai/automacao_ctar/releases/latest" target="_blank" rel="noopener noreferrer">
+            Baixar no GitHub
+          </a>
+        </div>
+      </section>
 
-      <div class="alert alert-warn">
-        <span class="alert-title">⚠️ Como liberar as duas caixas de aviso:</span>
-        <ol>
-          <li><strong>1º Aviso (ao abrir o instalador baixado):</strong> clique em <strong>Mais informações</strong> (ou na opção de detalhes) e depois em <strong>Executar assim mesmo</strong> / <strong>Manter</strong>, e conclua a instalação clicando em <strong>Instalar</strong>.</li>
-          <li><strong>2º Aviso (segunda confirmação do Windows):</strong> quando a caixa aparecer novamente, repita o processo clicando em <strong>Mais informações</strong> → <strong>Executar assim mesmo</strong>.</li>
+      <!-- PASSO 2 -->
+      <section id="passo-2" class="step-section">
+        <div class="step-heading">
+          <span class="step-num">2</span>
+          <h2>Liberar os 2 avisos após o download</h2>
+        </div>
+        <p>
+          <strong>Depois que o download terminar</strong>, ao abrir o <code>Setup_Automacao_CTAR.exe</code>, o Windows exibirá <strong>2 vezes</strong> uma caixa informando que o arquivo é suspeito. Isso ocorre normalmente porque se trata de um aplicativo interno (de terceiro, sem assinatura comercial).
+        </p>
+
+        <div class="callout callout-warn">
+          <span class="callout-title">Como confirmar as duas caixas de aviso</span>
+          <ol class="clean-list">
+            <li><strong>1º Aviso (ao abrir o instalador):</strong> clique em <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>. Em seguida, clique em <strong>Instalar</strong>.</li>
+            <li><strong>2º Aviso (segunda confirmação do Windows):</strong> quando a caixa aparecer novamente, clique mais uma vez em <strong>Mais informações</strong> → <strong>Executar assim mesmo</strong>.</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- PASSO 3 -->
+      <section id="passo-3" class="step-section">
+        <div class="step-heading">
+          <span class="step-num">3</span>
+          <h2>Configurar as 3 pastas no aplicativo</h2>
+        </div>
+        <p>
+          Ao abrir o programa, clique em <strong>Buscar</strong> em cada campo para definir a origem dos arquivos e o destino no SharePoint:
+        </p>
+
+        <div class="folder-list">
+          <div class="folder-row">
+            <div class="folder-name">Pasta de Gravações</div>
+            <div class="folder-desc">Pasta local onde caem os vídeos das reuniões (<code>.mp4</code>).</div>
+          </div>
+          <div class="folder-row">
+            <div class="folder-name">Pasta de Documentos</div>
+            <div class="folder-desc">Pasta local onde você coloca as transcrições (<code>.docx</code>) e listas de presença (<code>.csv</code>).</div>
+          </div>
+          <div class="folder-row">
+            <div class="folder-name">Pasta SharePoint Sincronizada</div>
+            <div class="folder-desc">Pasta raiz do <strong>Hub de Projetos</strong> sincronizada pelo OneDrive/SharePoint (onde ficam as pastas das empresas).</div>
+          </div>
+        </div>
+
+        <span class="flow-label">Caminho que o robô segue até o destino final</span>
+        <div class="path-flow">
+          <span class="node">Raiz SharePoint</span>
+          <span class="sep">→</span>
+          <span class="node">Empresa</span>
+          <span class="sep">→</span>
+          <span class="node">Projeto (ID no início)</span>
+          <span class="sep">→</span>
+          <span class="node">03 – Propostas e Orçamentos</span>
+          <span class="sep">→</span>
+          <span class="node auto">CTAR</span>
+          <span class="sep">→</span>
+          <span class="node auto">1º CTAR / 2º CTAR...</span>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-title">Regra da estrutura no Hub</span>
+          As pastas <strong>Empresa</strong>, <strong>Projeto</strong> e <strong>03 – Propostas e Orçamentos</strong> já precisam existir no SharePoint. Apenas <strong>CTAR</strong> e as rodadas (<code>1º CTAR</code>, <code>2º CTAR</code>...) são criadas automaticamente pelo robô.
+        </div>
+      </section>
+
+      <!-- PASSO 4 -->
+      <section id="passo-4" class="step-section">
+        <div class="step-heading">
+          <span class="step-num">4</span>
+          <h2>Iniciar o monitoramento</h2>
+        </div>
+        <ol class="clean-list">
+          <li>Com as três pastas configuradas, clique em <strong>Iniciar monitoramento</strong>. O status no topo mudará para <strong>Ativo</strong>.</li>
+          <li>Todo novo arquivo adicionado às pastas de Gravações ou Documentos com o padrão de identificação (ex.: <code>2062 | ADVANTAG | Título</code> ou <code>CTAR 1925 _ SINDICERCON _ Título</code>) será enviado automaticamente para a pasta correta.</li>
         </ol>
-      </div>
-    </section>
+      </section>
 
-    <!-- PASSO 3 -->
-    <section class="card">
-      <span class="step-badge">Passo 3</span>
-      <h2>Configurar as 3 pastas no programa</h2>
-      <p>
-        Com o programa aberto, clique no botão <strong>Buscar</strong> em cada campo para indicar onde os arquivos ficam e para onde devem ser enviados:
-      </p>
-
-      <div class="folder-grid">
-        <div class="folder-item">
-          <h3>🎥 1. Pasta de Gravações</h3>
-          <p>Pasta local do seu computador onde caem as gravações de reunião (<code>.mp4</code>).</p>
+      <!-- FAQ -->
+      <section id="faq" class="step-section">
+        <div class="step-heading">
+          <span class="step-num">?</span>
+          <h2>Dúvidas frequentes</h2>
         </div>
-        <div class="folder-item">
-          <h3>📄 2. Pasta de Documentos</h3>
-          <p>Pasta local onde você coloca as transcrições (<code>.docx</code>) e listas de presença (<code>.csv</code>).</p>
+
+        <div class="faq-list">
+          <details class="faq-item" open>
+            <summary>E se aparecer um aviso vermelho dizendo que falta uma pasta?</summary>
+            <p>O robô não cria pastas de Empresa, Projeto ou <code>03 – Propostas e Orçamentos</code> por segurança. Crie ou sincronize a pasta indicada no SharePoint e clique em <strong>Tentar novamente</strong> no próprio aviso na tela.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Preciso criar a pasta CTAR ou 1º CTAR manualmente?</summary>
+            <p>Não. Desde que <code>03 – Propostas e Orçamentos</code> exista dentro do projeto, o robô cria <code>CTAR</code> e a rodada correspondente (<code>1º CTAR</code>, <code>2º CTAR</code>...) automaticamente.</p>
+          </details>
+
+          <details class="faq-item">
+            <summary>Os arquivos antigos que já estavam na pasta serão enviados?</summary>
+            <p>Não. Ao clicar em <strong>Iniciar monitoramento</strong>, o robô ignora os arquivos já existentes e processa apenas os novos arquivos adicionados a partir daquele momento.</p>
+          </details>
         </div>
-        <div class="folder-item">
-          <h3>☁️ 3. Pasta SharePoint Sincronizada (Destino)</h3>
-          <p>Pasta raiz do <strong>Hub de Projetos</strong> sincronizada no seu computador pelo OneDrive/SharePoint (onde ficam as pastas das empresas).</p>
-        </div>
-      </div>
-
-      <p style="margin-top: 12px;">
-        <strong>Caminho que o robô segue para organizar o arquivo:</strong>
-      </p>
-
-      <div class="path-flow">
-        <span class="path-node">Pasta SharePoint (Raiz)</span>
-        <span class="arrow">→</span>
-        <span class="path-node">Empresa</span>
-        <span class="arrow">→</span>
-        <span class="path-node">Projeto (ID no início)</span>
-        <span class="arrow">→</span>
-        <span class="path-node">03 – Propostas e Orçamentos</span>
-        <span class="arrow">→</span>
-        <span class="path-node highlight">CTAR</span>
-        <span class="arrow">→</span>
-        <span class="path-node highlight">1º CTAR / 2º CTAR...</span>
-      </div>
-
-      <div class="alert alert-info">
-        <span class="alert-title">ℹ️ O que já deve existir e o que é criado automaticamente</span>
-        As pastas <strong>Empresa</strong>, <strong>Projeto</strong> e <strong>03 – Propostas e Orçamentos</strong> devem já existir no SharePoint. Apenas a subpasta <strong>CTAR</strong> e as rodadas (<code>1º CTAR</code>, <code>2º CTAR</code>...) são criadas automaticamente pelo robô.
-      </div>
-    </section>
-
-    <!-- PASSO 4 -->
-    <section class="card">
-      <span class="step-badge">Passo 4</span>
-      <h2>Iniciar o monitoramento e usar no dia a dia</h2>
-      <ol>
-        <li>Com as três pastas configuradas, clique em <strong>Iniciar monitoramento</strong> (o status mudará para <strong>Ativo</strong>).</li>
-        <li>Todo novo arquivo colocado nas pastas de Gravações ou Documentos seguindo o padrão com <strong>ID</strong> e <strong>Empresa</strong> (ex.: <code>2062 | ADVANTAG | Título</code> ou <code>CTAR 1925 _ SINDICERCON _ Título</code>) será enviado automaticamente.</li>
-      </ol>
-
-      <div class="alert alert-ok">
-        <span class="alert-title">✅ Caso falte alguma pasta no SharePoint</span>
-        O robô mostrará um aviso claro na tela informando qual pasta está faltando. Basta criar ou sincronizar a pasta no SharePoint e clicar em <strong>Tentar novamente</strong> no próprio aviso.
-      </div>
-    </section>
-
-    <footer>
-      Automação CTAR — Guia de Instalação e Configuração (para salvar em PDF: Ctrl + P → Salvar como PDF)
-    </footer>
-
-  </main>
+      </section>
+    </main>
+  </div>
 
 </body>
 </html>
